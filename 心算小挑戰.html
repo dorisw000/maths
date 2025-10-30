@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<!-- saved from url=(0067)file:///C:/Users/dwong/Downloads/deepseek_html_20251030_312cba.html -->
+<html lang="zh-TW"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心算小挑戰</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Comic Sans MS', 'Arial Rounded MT Bold', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #ffccd5, #c9f5ff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            border: 5px solid #ff9eb5;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #ff6b93;
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 0 #ffd1dc;
+        }
+        
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            background-color: #fff9c4;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 3px solid #ffd54f;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin: 5px 10px;
+        }
+        
+        .control-group label {
+            font-weight: bold;
+            margin-right: 8px;
+            color: #ff7043;
+        }
+        
+        select, input {
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 2px solid #ff9eb5;
+            background-color: white;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        
+        button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 0 #388e3c;
+        }
+        
+        button:hover {
+            background-color: #66bb6a;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #388e3c;
+        }
+        
+        .game-area {
+            position: relative;
+            height: 400px;
+            background-color: #e3f2fd;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 5px solid #90caf9;
+            margin-bottom: 20px;
+        }
+        
+        .game-field {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .question {
+            position: absolute;
+            background-color: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border: 3px solid #ff6b93;
+            color: #ff4081;
+            white-space: nowrap;
+            transition: top 0.05s linear;
+        }
+        
+        .answer-display {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2196f3;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 10px;
+            margin: 0 auto;
+            width: 80%;
+        }
+        
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            padding: 15px;
+            background-color: #ffecb3;
+            border-radius: 15px;
+            border: 3px solid #ffd54f;
+        }
+        
+        .keypad button {
+            height: 60px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background-color: #ff9800;
+            box-shadow: 0 4px 0 #f57c00;
+        }
+        
+        .keypad button:hover {
+            background-color: #ffb74d;
+        }
+        
+        .keypad button:active {
+            box-shadow: 0 2px 0 #f57c00;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            background-color: #ffecb3;
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ff6b93;
+            border: 3px solid #ffd54f;
+            margin-bottom: 20px;
+        }
+        
+        .timer {
+            color: #f44336;
+        }
+        
+        .score {
+            color: #4caf50;
+        }
+        
+        .clear-btn {
+            background-color: #f44336;
+            box-shadow: 0 4px 0 #d32f2f;
+        }
+        
+        .clear-btn:hover {
+            background-color: #ef5350;
+        }
+        
+        .enter-btn {
+            background-color: #2196f3;
+            box-shadow: 0 4px 0 #1976d2;
+            grid-column: span 2;
+        }
+        
+        .enter-btn:hover {
+            background-color: #42a5f5;
+        }
+        
+        @media (max-width: 768px) {
+            .control-panel {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .game-area {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>心算小挑戰</h1>
+        
+        <div class="control-panel">
+            <div class="control-group">
+                <label for="operation">運算類型:</label>
+                <select id="operation">
+                    <option value="add">加法</option>
+                    <option value="subtract">減法</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="range">數字範圍:</label>
+                <select id="range">
+                    <option value="5">5以內</option>
+                    <option value="10" selected="">10以內</option>
+                    <option value="18">18以內</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="countdown">倒計時(秒):</label>
+                <input type="number" id="countdown" min="10" max="300" value="60">
+            </div>
+            
+            <div class="control-group">
+                <label for="speed">下落速度:</label>
+                <input type="range" id="speed" min="1" max="10" value="5">
+            </div>
+            
+            <button id="start-btn">重新開始</button>
+        </div>
+        
+        <div class="stats">
+            <div class="timer">剩餘時間: <span id="time-left">0</span> 秒</div>
+            <div class="score">得分: <span id="score">0</span></div>
+        </div>
+        
+        <div class="game-area">
+            <div class="game-field" id="game-field">
+                <!-- 題目會在這裡動態生成 -->
+                <div class="answer-display" id="answer-display">輸入答案</div>
+            </div>
+        </div>
+        
+        <div class="keypad">
+            <button data-key="1">1</button>
+            <button data-key="2">2</button>
+            <button data-key="3">3</button>
+            <button data-key="4">4</button>
+            <button data-key="5">5</button>
+            <button data-key="6">6</button>
+            <button data-key="7">7</button>
+            <button data-key="8">8</button>
+            <button data-key="9">9</button>
+            <button data-key="0">0</button>
+            <button class="clear-btn" data-key="clear">清除</button>
+            <button class="enter-btn" data-key="enter">確定</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 獲取DOM元素
+            const startBtn = document.getElementById('start-btn');
+            const gameField = document.getElementById('game-field');
+            const answerDisplay = document.getElementById('answer-display');
+            const timeLeftDisplay = document.getElementById('time-left');
+            const scoreDisplay = document.getElementById('score');
+            const operationSelect = document.getElementById('operation');
+            const rangeSelect = document.getElementById('range');
+            const countdownInput = document.getElementById('countdown');
+            const speedInput = document.getElementById('speed');
+            const keypadButtons = document.querySelectorAll('.keypad button');
+            
+            // 遊戲狀態變量
+            let gameActive = false;
+            let score = 0;
+            let currentAnswer = '';
+            let currentQuestion = null;
+            let timer;
+            let timeLeft;
+            let questionInterval;
+            
+            // 開始/重新開始遊戲
+            startBtn.addEventListener('click', function() {
+                if (!gameActive) {
+                    startGame();
+                } else {
+                    restartGame();
+                }
+            });
+            
+            // 鍵盤按鈕事件
+            keypadButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    if (!gameActive) return;
+                    
+                    const key = this.getAttribute('data-key');
+                    
+                    if (key === 'clear') {
+                        currentAnswer = '';
+                        answerDisplay.textContent = '輸入答案';
+                    } else if (key === 'enter') {
+                        checkAnswer();
+                    } else {
+                        if (currentAnswer.length < 3) { // 限制答案長度
+                            currentAnswer += key;
+                            answerDisplay.textContent = currentAnswer;
+                        }
+                    }
+                });
+            });
+            
+            // 鍵盤支持
+            document.addEventListener('keydown', function(event) {
+                if (!gameActive) return;
+                
+                const key = event.key;
+                
+                if (key >= '0' && key <= '9') {
+                    if (currentAnswer.length < 3) {
+                        currentAnswer += key;
+                        answerDisplay.textContent = currentAnswer;
+                    }
+                } else if (key === 'Backspace') {
+                    currentAnswer = currentAnswer.slice(0, -1);
+                    answerDisplay.textContent = currentAnswer || '輸入答案';
+                } else if (key === 'Enter') {
+                    checkAnswer();
+                }
+            });
+            
+            // 開始遊戲
+            function startGame() {
+                gameActive = true;
+                score = 0;
+                scoreDisplay.textContent = score;
+                startBtn.textContent = '重新開始';
+                
+                // 設置倒計時
+                timeLeft = parseInt(countdownInput.value);
+                timeLeftDisplay.textContent = timeLeft;
+                
+                // 開始計時
+                timer = setInterval(function() {
+                    timeLeft--;
+                    timeLeftDisplay.textContent = timeLeft;
+                    
+                    if (timeLeft <= 0) {
+                        endGame();
+                    }
+                }, 1000);
+                
+                // 開始生成題目
+                generateQuestion();
+                
+                // 設置題目生成間隔
+                const speed = parseInt(speedInput.value);
+                questionInterval = setInterval(generateQuestion, 3000 - (speed * 250));
+            }
+            
+            // 重新開始遊戲
+            function restartGame() {
+                endGame();
+                startGame();
+            }
+            
+            // 結束遊戲
+            function endGame() {
+                gameActive = false;
+                clearInterval(timer);
+                clearInterval(questionInterval);
+                
+                // 移除所有題目
+                const questions = document.querySelectorAll('.question');
+                questions.forEach(question => question.remove());
+                
+                // 顯示遊戲結束信息
+                alert(`遊戲結束！你的得分是: ${score}`);
+            }
+            
+            // 生成題目
+            function generateQuestion() {
+                if (!gameActive) return;
+                
+                // 移除之前的題目
+                if (currentQuestion) {
+                    currentQuestion.remove();
+                }
+                
+                // 生成隨機題目
+                const operation = operationSelect.value;
+                const range = parseInt(rangeSelect.value);
+                let num1, num2, questionText, correctAnswer;
+                
+                if (operation === 'add') {
+                    num1 = Math.floor(Math.random() * (range - 1)) + 1; // 1到range-1
+                    num2 = Math.floor(Math.random() * (range - num1)) + 1; // 確保和不超過range
+                    questionText = `${num1} + ${num2}`;
+                    correctAnswer = num1 + num2;
+                } else {
+                    num1 = Math.floor(Math.random() * (range - 1)) + 2; // 2到range
+                    num2 = Math.floor(Math.random() * (num1 - 1)) + 1; // 1到num1-1
+                    questionText = `${num1} - ${num2}`;
+                    correctAnswer = num1 - num2;
+                }
+                
+                // 創建題目元素
+                const question = document.createElement('div');
+                question.className = 'question';
+                question.textContent = questionText;
+                question.dataset.answer = correctAnswer;
+                
+                // 隨機水平位置
+                const fieldWidth = gameField.offsetWidth;
+                const questionWidth = 150; // 固定寬度
+                const maxLeft = fieldWidth - questionWidth - 20;
+                const left = Math.floor(Math.random() * maxLeft) + 10;
+                
+                question.style.left = `${left}px`;
+                question.style.top = '0px';
+                question.style.width = `${questionWidth}px`;
+                
+                gameField.appendChild(question);
+                currentQuestion = question;
+                
+                // 重置答案輸入
+                currentAnswer = '';
+                answerDisplay.textContent = '輸入答案';
+                
+                // 開始下落動畫
+                const speed = parseInt(speedInput.value);
+                const fallSpeed = 1 + (speed * 0.5); // 速度範圍: 1.5到6
+                
+                function fall() {
+                    if (!gameActive) return;
+                    
+                    const top = parseFloat(question.style.top) || 0;
+                    const newTop = top + fallSpeed;
+                    question.style.top = `${newTop}px`;
+                    
+                    // 檢查是否到達底部
+                    if (newTop > gameField.offsetHeight - question.offsetHeight) {
+                        // 題目離開屏幕，生成新題目
+                        question.remove();
+                        generateQuestion();
+                    } else {
+                        requestAnimationFrame(fall);
+                    }
+                }
+                
+                fall();
+            }
+            
+            // 檢查答案
+            function checkAnswer() {
+                if (!gameActive || !currentQuestion) return;
+                
+                const userAnswer = parseInt(currentAnswer);
+                const correctAnswer = parseInt(currentQuestion.dataset.answer);
+                
+                if (userAnswer === correctAnswer) {
+                    // 答案正確
+                    score++;
+                    scoreDisplay.textContent = score;
+                    
+                    // 添加正確反饋
+                    currentQuestion.style.backgroundColor = '#c8e6c9';
+                    currentQuestion.style.color = '#2e7d32';
+                    
+                    setTimeout(() => {
+                        if (currentQuestion) {
+                            currentQuestion.remove();
+                            generateQuestion();
+                        }
+                    }, 500);
+                } else {
+                    // 答案錯誤
+                    currentQuestion.style.backgroundColor = '#ffcdd2';
+                    currentQuestion.style.color = '#c62828';
+                    
+                    setTimeout(() => {
+                        currentAnswer = '';
+                        answerDisplay.textContent = '輸入答案';
+                        currentQuestion.style.backgroundColor = 'white';
+                        currentQuestion.style.color = '#ff4081';
+                    }, 1000);
+                }
+            }
+        });
+    </script>
+
+</body></html>
