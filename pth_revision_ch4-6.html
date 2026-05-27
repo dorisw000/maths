@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>普通話溫習小擂台 🏆</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --secondary: #FF9F43;
+            --success: #2ECC71;
+            --danger: #E74C3C;
+            --background: #F4F7F6;
+            --card-bg: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--background);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            font-size: 1.2em;
+            background-color: #ddd;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background-color: var(--secondary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .game-container {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 800px;
+            display: none;
+        }
+
+        .game-container.active {
+            display: block;
+        }
+
+        /* 遊戲一 & 二 基本樣式保留 */
+        .match-area { display: flex; justify-content: space-between; gap: 20px; }
+        .column { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+        .card { padding: 15px; text-align: center; background-color: #f8f9fa; border: 3px solid #e9ecef; border-radius: 10px; font-size: 1.5em; cursor: pointer; transition: transform 0.2s; user-select: none; }
+        .card.selected { border-color: var(--primary); background-color: #e3f2fd; }
+        .card.matched { border-color: var(--success); background-color: #e8f8f5; color: #a0a0a0; pointer-events: none; }
+        .quiz-area { text-align: center; }
+        .question-box { font-size: 2em; margin-bottom: 20px; padding: 20px; background-color: #fff3e0; border-radius: 15px; }
+        .options { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .option-btn { padding: 15px 30px; font-size: 1.5em; background-color: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; }
+        .correct { color: var(--success); }
+        .wrong { color: var(--danger); }
+        .action-btn { padding: 10px 20px; font-size: 1.1em; background-color: #95a5a6; color: white; border: none; border-radius: 10px; cursor: pointer; margin-top: 15px; }
+
+        /* 遊戲三：比賽專用樣式 */
+        .setup-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .setup-form label {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .setup-form select, .setup-form input {
+            padding: 10px;
+            font-size: 1.2em;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+
+        .btn-start {
+            background-color: var(--danger);
+            color: white;
+            font-size: 1.5em;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .btn-start:hover { background-color: #c0392b; }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .timer { color: #f1c40f; }
+        .timer.warning { color: #e74c3c; animation: blink 1s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        .input-area { text-align: center; margin-top: 20px; }
+        .type-input {
+            font-size: 2em;
+            padding: 10px;
+            width: 150px;
+            text-align: center;
+            border: 3px solid var(--primary);
+            border-radius: 10px;
+            margin-right: 10px;
+        }
+
+        .btn-submit {
+            font-size: 1.5em;
+            padding: 12px 25px;
+            background-color: var(--success);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            vertical-align: top;
+        }
+
+        /* 排行榜樣式 */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 1.2em;
+            text-align: center;
+        }
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 12px;
+            border-bottom: 2px solid #ddd;
+        }
+        .leaderboard-table th { background-color: var(--primary); color: white; }
+        .current-player { background-color: #fff3e0; font-weight: bold; color: #d35400; }
+        .rank-1 { font-size: 1.5em; }
+
+    </style>
+</head>
+<body>
+
+    <h1>🌟 普通話溫習小擂台 🌟</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('game1')">1️⃣ 拼音配對</button>
+        <button class="tab-btn" onclick="switchTab('game2')">2️⃣ 聲韻母選擇</button>
+        <button class="tab-btn" style="background-color: #e74c3c; color: white;" onclick="switchTab('game3')">🏆 終極拼寫大賽 (計時)</button>
+    </div>
+
+    <div id="game1" class="game-container active">
+        <h2 style="text-align: center; color: #555;">請將「中文詞語」與「正確拼音」連線配對！</h2>
+        <div class="match-area">
+            <div class="column" id="word-col"></div>
+            <div class="column" id="pinyin-col"></div>
+        </div>
+        <div id="feedback-game1" style="text-align:center; margin-top:15px; font-size:1.5em; font-weight:bold;"></div>
+        <div style="text-align:center;"><button class="action-btn" onclick="initGame1()">🔄 換一組題目</button></div>
+    </div>
+
+    <div id="game2" class="game-container">
+        <h2 style="text-align: center; color: #555;">仔細看拼音，選出正確的選項！</h2>
+        <div class="quiz-area">
+            <div class="question-box" id="quiz-question"></div>
+            <div class="options" id="quiz-options"></div>
+        </div>
+        <div id="feedback-game2" style="text-align:center; margin-top:15px; font-size:1.5em; font-weight:bold; height:30px;"></div>
+        <div style="text-align:center;"><button class="action-btn" onclick="initGame2()">⏭️ 下一題</button></div>
+    </div>
+
+    <div id="game3" class="game-container">
+        
+        <div id="setup-screen">
+            <h2 style="text-align: center; color: var(--danger);">🔥 進入比賽房間</h2>
+            <div class="setup-form">
+                <label>👤 選擇班別：</label>
+                <select id="player-class">
+                    <option value="6A">6A</option>
+                    <option value="6B">6B</option>
+                    <option value="6C">6C</option>
+                    <option value="6D">6D</option>
+                </select>
+
+                <label>🔢 輸入學號：</label>
+                <input type="number" id="player-id" placeholder="例如: 12" min="1" max="40">
+
+                <label>⏱️ 老師設定時間：</label>
+                <select id="game-time">
+                    <option value="60">1 分鐘</option>
+                    <option value="120">2 分鐘</option>
+                    <option value="180">3 分鐘</option>
+                </select>
+
+                <button class="btn-start" onclick="startCompetition()">⚔️ 開始挑戰！</button>
+            </div>
+        </div>
+
+        <div id="competition-screen" style="display: none;">
+            <div class="game-header">
+                <div>🧑‍🎓 參賽者：<span id="display-player"></span></div>
+                <div>🎯 得分：<span id="score-display">0</span></div>
+                <div class="timer">⏳ 剩餘時間：<span id="time-display">60</span> 秒</div>
+            </div>
+
+            <div class="quiz-area">
+                <div class="question-box" id="comp-question">
+                    </div>
+                <div class="input-area">
+                    <input type="text" id="pinyin-input" class="type-input" placeholder="輸入拼音" autocomplete="off">
+                    <button class="btn-submit" onclick="checkCompAnswer()">送出</button>
+                </div>
+            </div>
+            <div id="feedback-comp" style="text-align:center; margin-top:15px; font-size:1.5em; font-weight:bold; height:30px;"></div>
+        </div>
+
+        <div id="leaderboard-screen" style="display: none;">
+            <h2 style="text-align: center; color: var(--primary);">🏆 比賽結束！班級排行榜 🏆</h2>
+            <div style="text-align: center; font-size: 1.5em; margin-bottom: 10px;">
+                你的最終得分：<strong style="color: var(--danger);" id="final-score"></strong> 分
+            </div>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>班別</th>
+                        <th>學號</th>
+                        <th>得分</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    </tbody>
+            </table>
+            <div style="text-align:center; margin-top:20px;">
+                <button class="action-btn" onclick="resetCompetition()">🔄 重新開始</button>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    // 詞彙資料庫 (擷取自您的教材圖片，包含輕聲與難字)
+    const vocabData = [
+        { word: "探訪", syllables: [{char:"探", i:"t", f:"an"}, {char:"訪", i:"f", f:"ang"}] },
+        { word: "順利", syllables: [{char:"順", i:"sh", f:"un"}, {char:"利", i:"l", f:"i"}] },
+        { word: "烹飪", syllables: [{char:"烹", i:"p", f:"eng"}, {char:"飪", i:"r", f:"en"}] },
+        { word: "畢業", syllables: [{char:"畢", i:"b", f:"i"}, {char:"業", i:"y", f:"e"}] },
+        { word: "孫子", syllables: [{char:"孫", i:"s", f:"un"}, {char:"子", i:"z", f:"i"}] }, 
+        { word: "應付", syllables: [{char:"應", i:"y", f:"ing"}, {char:"付", i:"f", f:"u"}] },
+        { word: "筵席", syllables: [{char:"筵", i:"y", f:"an"}, {char:"席", i:"x", f:"i"}] },
+        { word: "同窗", syllables: [{char:"同", i:"t", f:"ong"}, {char:"窗", i:"ch", f:"uang"}] },
+        { word: "沒精打采", syllables: [{char:"精", i:"j", f:"ing"}, {char:"采", i:"c", f:"ai"}] }, 
+        { word: "乾杯", syllables: [{char:"乾", i:"g", f:"an"}, {char:"杯", i:"b", f:"ei"}] }
+    ];
+
+    // 遊戲一資料 (簡化)
+    const game1Data = [
+        { word: "孫子", py: "sūn zi" }, { word: "應付", py: "yìng fu" }, { word: "筵席", py: "yán xí" },
+        { word: "烹飪", py: "pēng rèn" }, { word: "同窗", py: "tóng chuāng" }, { word: "沒精打采", py: "méi jīng dǎ cǎi" }
+    ];
+
+    // --- 頁籤切換 ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.game-container').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.target.classList.add('active');
+
+        if(tabId === 'game1') initGame1();
+        if(tabId === 'game2') initGame2();
+        // 遊戲三不自動開始，需停留在設定畫面
+    }
+
+    // --- 遊戲一：拼音配對 (精簡實作) ---
+    let sWord = null, sPy = null, matchCount = 0;
+    function initGame1() {
+        const wCol = document.getElementById('word-col'), pCol = document.getElementById('pinyin-col');
+        wCol.innerHTML = ''; pCol.innerHTML = ''; document.getElementById('feedback-game1').innerHTML = '';
+        matchCount = 0; sWord = null; sPy = null;
+        let pool = [...game1Data].sort(()=>0.5-Math.random()).slice(0,4);
+        let words = pool.map(v=>({t:v.word, id:v.word})).sort(()=>0.5-Math.random());
+        let pinyins = pool.map(v=>({t:v.py, id:v.word})).sort(()=>0.5-Math.random());
+        
+        words.forEach(i => { let d = document.createElement('div'); d.className='card w-card'; d.innerText=i.t; d.dataset.id=i.id; d.onclick=()=>sel1(d,'w'); wCol.appendChild(d); });
+        pinyins.forEach(i => { let d = document.createElement('div'); d.className='card p-card'; d.innerText=i.t; d.dataset.id=i.id; d.onclick=()=>sel1(d,'p'); pCol.appendChild(d); });
+    }
+    function sel1(el, type) {
+        if(el.classList.contains('matched')) return;
+        document.querySelectorAll(`.${type}-card`).forEach(e=>e.classList.remove('selected'));
+        el.classList.add('selected');
+        type==='w' ? sWord = el : sPy = el;
+        if(sWord && sPy) {
+            if(sWord.dataset.id === sPy.dataset.id) {
+                sWord.classList.replace('selected','matched'); sPy.classList.replace('selected','matched');
+                document.getElementById('feedback-game1').innerHTML = `<span class="correct">✅ 配對成功！</span>`; matchCount++;
+            } else {
+                sWord.classList.remove('selected'); sPy.classList.remove('selected');
+                document.getElementById('feedback-game1').innerHTML = `<span class="wrong">❌ 不對喔！</span>`;
+            }
+            sWord = null; sPy = null;
+        }
+    }
+
+    // --- 遊戲二：選擇 (精簡實作) ---
+    let g2Ans = "";
+    function initGame2() {
+        let w = vocabData[Math.floor(Math.random()*vocabData.length)];
+        let s = w.syllables[Math.floor(Math.random()*w.syllables.length)];
+        let isInit = Math.random() < 0.5;
+        g2Ans = isInit ? s.i : s.f;
+        document.getElementById('quiz-question').innerHTML = `詞語：<strong>${w.word}</strong><br>「${s.char}」的${isInit?'聲母':'韻母'}是？`;
+        let opts = [g2Ans, ...(isInit?['b','p','d','t','zh','ch','sh']:['a','o','e','i','u','ai','ei','ou'])].sort(()=>0.5-Math.random()).slice(0,4);
+        if(!opts.includes(g2Ans)) opts[0] = g2Ans; opts.sort(()=>0.5-Math.random());
+        
+        let box = document.getElementById('quiz-options'); box.innerHTML = '';
+        document.getElementById('feedback-game2').innerHTML = '';
+        opts.forEach(o => {
+            let b = document.createElement('button'); b.className='option-btn'; b.innerText=o;
+            b.onclick = () => {
+                document.getElementById('feedback-game2').innerHTML = o===g2Ans ? `<span class="correct">✅ 答對了！</span>` : `<span class="wrong">❌ 再試試！</span>`;
+                if(o===g2Ans) setTimeout(initGame2, 1000);
+            }; box.appendChild(b);
+        });
+    }
+
+    // ==========================================
+    // --- 遊戲三：終極拼寫大賽 (計時與填寫) ---
+    // ==========================================
+    let compScore = 0;
+    let timeLeft = 0;
+    let timerInterval;
+    let currentCompAns = "";
+    let playerInfo = { cls: "", id: "" };
+
+    // 監聽 Enter 鍵自動送出
+    document.getElementById('pinyin-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') checkCompAnswer();
+    });
+
+    function startCompetition() {
+        const cls = document.getElementById('player-class').value;
+        const sId = document.getElementById('player-id').value;
+        const timeVal = parseInt(document.getElementById('game-time').value);
+
+        if (!sId) {
+            alert("⚠️ 請輸入你的學號！");
+            return;
+        }
+
+        // 初始化設定
+        playerInfo.cls = cls;
+        playerInfo.id = sId;
+        compScore = 0;
+        timeLeft = timeVal;
+
+        document.getElementById('display-player').innerText = `${cls} 班 (學號 ${sId})`;
+        document.getElementById('score-display').innerText = compScore;
+        document.getElementById('time-display').innerText = timeLeft;
+        document.querySelector('.timer').classList.remove('warning');
+        
+        // 切換畫面
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('competition-screen').style.display = 'block';
+        document.getElementById('leaderboard-screen').style.display = 'none';
+
+        generateCompQuestion();
+        
+        // 開始計時
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById('time-display').innerText = timeLeft;
+            
+            if (timeLeft <= 10) {
+                document.querySelector('.timer').classList.add('warning');
+            }
+
+            if (timeLeft <= 0) {
+                endCompetition();
+            }
+        }, 1000);
+    }
+
+    function generateCompQuestion() {
+        const w = vocabData[Math.floor(Math.random() * vocabData.length)];
+        const s = w.syllables[Math.floor(Math.random() * w.syllables.length)];
+        const isInit = Math.random() < 0.5; // true 填聲母, false 填韻母
+        
+        currentCompAns = isInit ? s.i : s.f;
+        
+        const typeText = isInit ? "<span style='color:var(--primary)'>聲母</span>" : "<span style='color:var(--danger)'>韻母</span>";
+        document.getElementById('comp-question').innerHTML = `
+            詞語：<strong>${w.word}</strong><br>
+            請寫出「${s.char}」的 ${typeText}：
+        `;
+        
+        const inputField = document.getElementById('pinyin-input');
+        inputField.value = "";
+        inputField.focus(); // 自動對焦，方便學生連續輸入
+        document.getElementById('feedback-comp').innerHTML = "";
+    }
+
+    function checkCompAnswer() {
+        const inputVal = document.getElementById('pinyin-input').value.trim().toLowerCase();
+        const feedback = document.getElementById('feedback-comp');
+
+        if (inputVal === "") return;
+
+        if (inputVal === currentCompAns) {
+            compScore += 10; // 答對加 10 分
+            document.getElementById('score-display').innerText = compScore;
+            feedback.innerHTML = `<span class="correct">✅ 完美！加 10 分！</span>`;
+            setTimeout(generateCompQuestion, 500); // 半秒後換題
+        } else {
+            feedback.innerHTML = `<span class="wrong">❌ 錯了喔，正確答案是「${currentCompAns}」</span>`;
+            setTimeout(generateCompQuestion, 1500); // 錯了給點時間看答案
+        }
+    }
+
+    function endCompetition() {
+        clearInterval(timerInterval);
+        document.getElementById('competition-screen').style.display = 'none';
+        document.getElementById('leaderboard-screen').style.display = 'block';
+        document.getElementById('final-score').innerText = compScore;
+        
+        generateLeaderboard();
+    }
+
+    function generateLeaderboard() {
+        // 為了比賽效果，這裡利用亂數產生 4 個同班的「虛擬對手」成績
+        let mockPlayers = [
+            { cls: playerInfo.cls, id: "03", score: Math.floor(Math.random() * 50) * 10 },
+            { cls: playerInfo.cls, id: "15", score: Math.floor(Math.random() * 80) * 10 },
+            { cls: playerInfo.cls, id: "22", score: Math.floor(Math.random() * 100) * 10 },
+            { cls: playerInfo.cls, id: "31", score: Math.floor(Math.random() * 60) * 10 }
+        ];
+
+        // 加入真實玩家
+        mockPlayers.push({ cls: playerInfo.cls, id: playerInfo.id, score: compScore, isMe: true });
+
+        // 依分數排序 (由高到低)
+        mockPlayers.sort((a, b) => b.score - a.score);
+
+        const tbody = document.getElementById('leaderboard-body');
+        tbody.innerHTML = "";
+
+        mockPlayers.forEach((p, index) => {
+            let tr = document.createElement('tr');
+            if (p.isMe) tr.className = "current-player";
+            
+            let rankIcon = index + 1;
+            if (index === 0) rankIcon = "🥇 1";
+            if (index === 1) rankIcon = "🥈 2";
+            if (index === 2) rankIcon = "🥉 3";
+
+            tr.innerHTML = `
+                <td class="${index === 0 ? 'rank-1' : ''}">${rankIcon}</td>
+                <td>${p.cls}</td>
+                <td>${p.id} ${p.isMe ? "(你)" : ""}</td>
+                <td><strong>${p.score}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function resetCompetition() {
+        document.getElementById('leaderboard-screen').style.display = 'none';
+        document.getElementById('setup-screen').style.display = 'block';
+        document.getElementById('player-id').value = ""; // 清空學號準備下一位
+    }
+
+    // 初始化先跑遊戲一
+    initGame1();
+
+</script>
+</body>
+</html>
