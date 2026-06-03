@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>普通話拼音拆彈專家</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sci: {
+                            bg: '#020617', // slate-950
+                            panel: '#0f172a', // slate-900
+                            green: '#10b981', // emerald-500
+                            purple: '#a855f7', // purple-500
+                            blue: '#3b82f6', // blue-500
+                            yellow: '#facc15', // yellow-400
+                            danger: '#ef4444', // red-500
+                        }
+                    },
+                    animation: {
+                        shake: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'pulse-glow': 'pulseGlow 1.5s ease-in-out infinite alternate',
+                        'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+                    },
+                    keyframes: {
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-2px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(4px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-8px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(8px, 0, 0)' }
+                        },
+                        pulseGlow: {
+                            '0%': { color: '#facc15', textShadow: '0 0 5px #facc15, 0 0 10px #facc15' },
+                            '100%': { color: '#fde047', textShadow: '0 0 20px #facc15, 0 0 30px #ca8a04, 0 0 40px #ca8a04' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020617;
+            background-image: 
+                linear-gradient(rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            color: white;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+        }
+        .btn-sci {
+            transition: all 0.2s ease;
+        }
+        .btn-sci:active {
+            transform: scale(0.95);
+        }
+        .card-slot {
+            min-height: 60px;
+            border: 2px dashed rgba(16, 185, 129, 0.4);
+            transition: all 0.2s ease;
+        }
+        .card-slot.filled {
+            border-style: solid;
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        .pinyin-card {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+        .pinyin-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+        .pinyin-card:active {
+            transform: scale(0.95);
+        }
+        /* 隱藏滾動條 */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center font-sans antialiased text-white">
+
+    <div id="app" class="w-full max-w-4xl min-h-[600px] mx-auto p-4 relative">
+        </div>
+
+    <div id="feedback-overlay" class="fixed inset-0 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div id="feedback-content" class="text-6xl md:text-8xl font-black text-center drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] tracking-widest flex flex-col items-center gap-4">
+            </div>
+    </div>
+
+    <script>
+        /** ==========================================
+         * 0. SVG 圖標庫 (內聯繪製)
+         * ========================================== */
+        const SVGs = {
+            heart: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-sci-danger drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>`,
+            clock: `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+            trophy: `<svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-sci-yellow drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>`,
+            bomb: `<svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 text-sci-danger animate-pulse mx-auto mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,1)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v4h-2zm0 6h2v2h-2z"/></svg>` // Simplified Bomb icon
+        };
+
+        /** ==========================================
+         * 1. 題庫與核心數據
+         * ========================================== */
+        const DATA = {
+            level1: ['a', 'o', 'e', 'i', 'u', 'ü'], // 單韻母
+            level2_all: ['ai', 'ei', 'ao', 'ou', 'an', 'en', 'ang', 'eng', 'ong', 'i', 'ia', 'ie', 'iao', 'iou', 'ian', 'in', 'iang', 'ing', 'iong', 'u', 'ua', 'uo', 'uai', 'uei', 'uan', 'uen', 'uang', 'ueng', 'ü', 'üe', 'üan', 'ün'], // 32個韻母
+            level3_all: ['b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y', 'w'], // 23個聲母
+            level4_vocab: [
+                { word: "順利", target: "順", i: "sh", f: "un", pinyin: "shùn" },
+                { word: "投入", target: "投", i: "t", f: "ou", pinyin: "tóu" },
+                { word: "結束", target: "束", i: "sh", f: "u", pinyin: "shù" },
+                { word: "植樹", target: "植", i: "zh", f: "i", pinyin: "zhí" },
+                { word: "自我介紹", target: "紹", i: "sh", f: "ao", pinyin: "shào" },
+                { word: "記憶", target: "記", i: "j", f: "i", pinyin: "jì" },
+                { word: "送暖行動", target: "暖", i: "n", f: "uan", pinyin: "nuǎn" },
+                { word: "清潔社區", target: "社", i: "sh", f: "e", pinyin: "shè" },
+                { word: "歌手", target: "歌", i: "g", f: "e", pinyin: "gē" },
+                { word: "廚師", target: "廚", i: "ch", f: "u", pinyin: "chú" },
+                { word: "烹飪", target: "烹", i: "p", f: "eng", pinyin: "pēng" },
+                { word: "烹飪", target: "飪", i: "r", f: "en", pinyin: "rèn" },
+                { word: "聚會", target: "聚", i: "j", f: "ü", pinyin: "jù" },
+                { word: "佳肴", target: "肴", i: "y", f: "ao", pinyin: "yáo" },
+                { word: "志願", target: "願", i: "y", f: "uan", pinyin: "yuàn" },
+                { word: "留學", target: "留", i: "l", f: "iu", pinyin: "liú" },
+                { word: "乾杯", target: "乾", i: "g", f: "an", pinyin: "gān" },
+                { word: "時裝設計師", target: "裝", i: "zh", f: "uang", pinyin: "zhuāng" },
+                { word: "藥劑師", target: "劑", i: "j", f: "i", pinyin: "jì" },
+                { word: "魔術師", target: "魔", i: "m", f: "o", pinyin: "mó" },
+                { word: "畢業", target: "畢", i: "b", f: "i", pinyin: "bì" },
+                { word: "沒精打采", target: "采", i: "c", f: "ai", pinyin: "cǎi" },
+                { word: "筵席", target: "席", i: "x", f: "i", pinyin: "xí" },
+                { word: "同窗", target: "窗", i: "ch", f: "uang", pinyin: "chuāng" },
+                { word: "後盾", target: "盾", i: "d", f: "un", pinyin: "dùn" }
+            ]
+        };
+
+        /** ==========================================
+         * 2. 全局狀態管理
+         * ========================================== */
+        let State = {
+            player: { class: '', id: '' },
+            level: 0, // 0=Login, 1,2,3, 4, 5=End
+            lives: 3,
+            score: 0, // L4答對題數
+            
+            // L1-L3 通用狀態
+            sorting: {
+                correctSequence: [],
+                availableCards: [],
+                slots: [] // 存放已放置的卡片
+            },
+
+            // L4 狀態
+            l4: {
+                questions: [],
+                currentIndex: 0,
+                timer: null,
+                timeLeft: 15,
+                selectedInitial: null,
+                selectedFinal: null,
+                optionsI: [],
+                optionsF: []
+            }
+        };
+
+        /** ==========================================
+         * 3. 工具函數
+         * ========================================== */
+        // 洗牌算法 (Fisher-Yates)
+        function shuffleArray(array) {
+            let arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // DOM 渲染核心
+        function renderGameUI(htmlContent) {
+            const app = document.getElementById('app');
+            app.innerHTML = htmlContent;
+        }
+
+        // 畫面震動特效 (錯誤時)
+        function triggerShake() {
+            const app = document.getElementById('app');
+            app.classList.remove('animate-shake');
+            void app.offsetWidth; // 觸發重繪
+            app.classList.add('animate-shake');
+        }
+
+        // 全局反饋特效 (綠色/紅色覆蓋層)
+        function showFeedback(isCorrect, message, callback) {
+            const overlay = document.getElementById('feedback-overlay');
+            const content = document.getElementById('feedback-content');
+            
+            overlay.className = `fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+                isCorrect ? 'bg-sci-green/80' : 'bg-sci-danger/90'
+            }`;
+            
+            let icon = isCorrect 
+                ? `<svg class="w-32 h-32 mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>`
+                : `<svg class="w-32 h-32 mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+
+            content.innerHTML = `${icon} <span>${message}</span>`;
+            
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.add('opacity-100'); }, 10);
+
+            setTimeout(() => {
+                overlay.classList.remove('opacity-100');
+                setTimeout(() => { 
+                    overlay.classList.add('hidden'); 
+                    if(callback) callback();
+                }, 300);
+            }, 2000);
+        }
+
+        // 生成頂部狀態欄
+        function generateHeader(levelTitle) {
+            let hearts = '';
+            for(let i=0; i<3; i++) {
+                hearts += i < State.lives ? SVGs.heart : `<div class="w-8 h-8 opacity-20 filter grayscale">${SVGs.heart}</div>`;
+            }
+            return `
+                <div class="flex justify-between items-center mb-6 glass-panel p-4 rounded-xl">
+                    <div class="text-xl font-bold text-sci-purple drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]">
+                        [ ${State.player.class} - ${State.player.id} ]
+                    </div>
+                    <div class="text-2xl font-black text-white tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-sci-blue to-sci-green">
+                        ${levelTitle}
+                    </div>
+                    <div class="flex gap-2">
+                        ${hearts}
+                    </div>
+                </div>
+            `;
+        }
+
+        /** ==========================================
+         * 4. 畫面渲染與邏輯模組
+         * ========================================== */
+
+        // 登入畫面
+        function drawLoginScreen() {
+            const html = `
+                <div class="flex flex-col items-center justify-center h-[600px] glass-panel rounded-3xl p-8 border-t-4 border-sci-blue relative overflow-hidden">
+                    <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoNTksMTMwLDI0NiwwLjEpIi8+PC9zdmc+')] opacity-50"></div>
+                    
+                    <h1 class="text-5xl md:text-6xl font-black mb-2 text-center drop-shadow-[0_0_15px_rgba(59,130,246,0.8)] z-10">普通話拼音</h1>
+                    <h1 class="text-6xl md:text-7xl font-black mb-12 text-center text-sci-yellow animate-pulse-glow z-10">拆彈專家</h1>
+                    
+                    <div class="w-full max-w-md z-10 space-y-6">
+                        <div>
+                            <label class="block text-sci-green mb-2 font-bold tracking-widest text-lg">選擇班別 (SECTION)</label>
+                            <div class="flex justify-between gap-2" id="class-selector">
+                                ${['6A', '6B', '6C', '6D'].map(c => `
+                                    <button onclick="selectClass('${c}')" id="btn-class-${c}" class="flex-1 py-3 rounded-full border-2 border-sci-blue text-sci-blue font-bold text-xl hover:bg-sci-blue hover:text-white transition-all">
+                                        ${c}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sci-green mb-2 font-bold tracking-widest text-lg">輸入學號 (AGENT ID 1-45)</label>
+                            <input type="number" id="student-id" min="1" max="45" placeholder="例如：12" class="w-full bg-sci-panel border-2 border-sci-purple rounded-xl py-4 px-6 text-2xl text-center text-white focus:outline-none focus:border-sci-yellow focus:ring-4 focus:ring-sci-yellow/30 transition-all">
+                        </div>
+
+                        <button onclick="handleLogin()" class="w-full bg-gradient-to-r from-sci-green to-sci-blue text-white font-black text-2xl py-4 rounded-xl mt-8 hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] btn-sci">
+                            啟動系統 (START)
+                        </button>
+                    </div>
+                </div>
+            `;
+            renderGameUI(html);
+        }
+
+        function selectClass(c) {
+            State.player.class = c;
+            ['6A', '6B', '6C', '6D'].forEach(cls => {
+                const btn = document.getElementById(`btn-class-${cls}`);
+                if (cls === c) {
+                    btn.classList.add('bg-sci-blue', 'text-white', 'shadow-[0_0_15px_rgba(59,130,246,0.8)]');
+                } else {
+                    btn.classList.remove('bg-sci-blue', 'text-white', 'shadow-[0_0_15px_rgba(59,130,246,0.8)]');
+                }
+            });
+        }
+
+        function handleLogin() {
+            const idVal = parseInt(document.getElementById('student-id').value);
+            if (!State.player.class) { alert("請選擇班別！"); return; }
+            if (!idVal || idVal < 1 || idVal > 45) { alert("學號必須是 1 到 45 之間的數字！"); return; }
+            
+            State.player.id = idVal;
+            startLevel1();
+        }
+
+        // ================= L1, L2, L3 通用排序邏輯 =================
+        function initSortingLevel(levelNum, title, targetSequence, instruction) {
+            State.level = levelNum;
+            State.sorting.correctSequence = [...targetSequence];
+            State.sorting.availableCards = shuffleArray(targetSequence);
+            State.sorting.slots = new Array(targetSequence.length).fill(null);
+            drawSortingScreen(title, instruction);
+        }
+
+        function drawSortingScreen(title, instruction) {
+            const { availableCards, slots, correctSequence } = State.sorting;
+            
+            const html = `
+                ${generateHeader(title)}
+                <div class="glass-panel p-6 rounded-2xl flex flex-col items-center">
+                    <p class="text-xl text-sci-yellow mb-8 text-center bg-sci-panel/50 p-4 rounded-lg border border-sci-yellow/30 w-full">
+                        任務指令：${instruction}
+                    </p>
+                    
+                    <div class="flex flex-wrap justify-center gap-4 mb-12 w-full">
+                        ${slots.map((item, index) => `
+                            <div onclick="handleSlotClick(${index})" class="card-slot w-16 h-20 sm:w-24 sm:h-28 rounded-xl flex items-center justify-center text-3xl sm:text-4xl font-bold cursor-pointer ${item ? 'filled shadow-[0_0_15px_rgba(16,185,129,0.5)]' : ''} bg-sci-panel hover:bg-sci-panel/80 transition-all">
+                                ${item ? `<span class="text-sci-green drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]">${item}</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="flex flex-wrap justify-center gap-4 w-full min-h-[120px] bg-black/30 p-6 rounded-xl border border-gray-700">
+                        ${availableCards.map((item, index) => item !== null ? `
+                            <div onclick="handleCardClick(${index})" class="pinyin-card w-16 h-20 sm:w-24 sm:h-28 bg-gradient-to-br from-sci-blue to-purple-600 rounded-xl flex items-center justify-center text-3xl sm:text-4xl font-bold border-2 border-blue-300/50">
+                                ${item}
+                            </div>
+                        ` : `<div class="w-16 h-20 sm:w-24 sm:h-28 opacity-0"></div>`).join('')}
+                    </div>
+
+                    <button onclick="verifySorting()" class="mt-10 px-12 py-4 bg-sci-purple text-white font-black text-2xl rounded-full btn-sci hover:shadow-[0_0_20px_rgba(168,85,247,0.8)] border-2 border-purple-300">
+                        驗證序列 (VERIFY)
+                    </button>
+                </div>
+            `;
+            renderGameUI(html);
+        }
+
+        function handleCardClick(index) {
+            const val = State.sorting.availableCards[index];
+            if (!val) return;
+            // 尋找第一個空槽
+            const emptySlotIdx = State.sorting.slots.indexOf(null);
+            if (emptySlotIdx !== -1) {
+                State.sorting.slots[emptySlotIdx] = val;
+                State.sorting.availableCards[index] = null; // 原位置清空
+                refreshSortingScreen();
+            }
+        }
+
+        function handleSlotClick(index) {
+            const val = State.sorting.slots[index];
+            if (!val) return;
+            // 尋找備選區第一個空位放回
+            const emptyCardIdx = State.sorting.availableCards.indexOf(null);
+            if (emptyCardIdx !== -1) {
+                State.sorting.availableCards[emptyCardIdx] = val;
+                State.sorting.slots[index] = null;
+                refreshSortingScreen();
+            }
+        }
+
+        function refreshSortingScreen() {
+            // 根據當前 Level 決定標題和指令
+            let title, inst;
+            if(State.level === 1) { title = '防線 1：單韻母基準'; inst = '依發音口形由大到小（a, o, e...）排列單韻母以解鎖。'; }
+            if(State.level === 2) { title = '防線 2：連續複韻母'; inst = '依拼音表順序（從左至右）將這 6 個相鄰韻母正確排序。'; }
+            if(State.level === 3) { title = '防線 3：連續聲母校對'; inst = '依聲母表順序將這 6 個相鄰聲母正確排列。'; }
+            drawSortingScreen(title, inst);
+        }
+
+        function verifySorting() {
+            const currentSeq = State.sorting.slots.join(',');
+            const targetSeq = State.sorting.correctSequence.join(',');
+            
+            if (State.sorting.slots.includes(null)) {
+                alert("請填滿所有解鎖槽！");
+                return;
+            }
+
+            if (currentSeq === targetSeq) {
+                // Correct
+                showFeedback(true, State.sorting.correctSequence.join(' '), () => {
+                    if (State.level === 1) startLevel2();
+                    else if (State.level === 2) startLevel3();
+                    else if (State.level === 3) startLevel4();
+                });
+            } else {
+                // Incorrect
+                triggerShake();
+            }
+        }
+
+        // ================= 啟動各關卡 =================
+        function startLevel1() {
+            initSortingLevel(1, '防線 1：單韻母基準', DATA.level1, '依發音口形由大到小排列單韻母以解鎖。');
+        }
+
+        function startLevel2() {
+            // 隨機選 6 個相鄰韻母
+            const maxIdx = DATA.level2_all.length - 6;
+            const startIdx = Math.floor(Math.random() * (maxIdx + 1));
+            const sequence = DATA.level2_all.slice(startIdx, startIdx + 6);
+            initSortingLevel(2, '防線 2：連續複韻母', sequence, '依拼音表順序（從左至右）將這 6 個相鄰韻母正確排序。');
+        }
+
+        function startLevel3() {
+            // 隨機選 6 個相鄰聲母
+            const maxIdx = DATA.level3_all.length - 6;
+            const startIdx = Math.floor(Math.random() * (maxIdx + 1));
+            const sequence = DATA.level3_all.slice(startIdx, startIdx + 6);
+            initSortingLevel(3, '防線 3：連續聲母校對', sequence, '依聲母表順序將這 6 個相鄰聲母正確排列。');
+        }
+
+        // ================= Level 4 終極生字拆彈 =================
+        function startLevel4() {
+            State.level = 4;
+            State.l4.questions = shuffleArray(DATA.level4_vocab).slice(0, 8);
+            State.l4.currentIndex = 0;
+            loadQuestion4();
+        }
+
+        function loadQuestion4() {
+            if (State.lives <= 0) {
+                gameOver(false);
+                return;
+            }
+            if (State.l4.currentIndex >= State.l4.questions.length) {
+                gameOver(true); // 通關
+                return;
+            }
+
+            const q = State.l4.questions[State.l4.currentIndex];
+            State.l4.selectedInitial = null;
+            State.l4.selectedFinal = null;
+            State.l4.timeLeft = 15;
+
+            // 生成選項：1正確 + 4干擾
+            const wrongI = shuffleArray(DATA.level3_all.filter(x => x !== q.i)).slice(0, 4);
+            State.l4.optionsI = shuffleArray([q.i, ...wrongI]);
+
+            const wrongF = shuffleArray(DATA.level2_all.filter(x => x !== q.f)).slice(0, 4);
+            State.l4.optionsF = shuffleArray([q.f, ...wrongF]);
+
+            drawLevel4Screen();
+            
+            // 啟動計時器
+            if(State.l4.timer) clearInterval(State.l4.timer);
+            State.l4.timer = setInterval(() => {
+                State.l4.timeLeft--;
+                updateTimerUI();
+                if (State.l4.timeLeft <= 0) {
+                    clearInterval(State.l4.timer);
+                    handleL4Timeout();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const tEl = document.getElementById('l4-timer');
+            if(!tEl) return;
+            tEl.innerText = `00:${State.l4.timeLeft.toString().padStart(2, '0')}`;
+            if (State.l4.timeLeft <= 5) {
+                tEl.parentElement.classList.add('text-sci-danger', 'animate-ping-slow', 'drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]');
+            }
+        }
+
+        function drawLevel4Screen() {
+            const q = State.l4.questions[State.l4.currentIndex];
+            
+            // 處理詞彙高亮
+            const words = q.word.split('');
+            const wordHtml = words.map(char => {
+                if(char === q.target) {
+                    return `<span class="text-sci-yellow animate-pulse-glow text-6xl md:text-8xl font-black mx-1">${char}</span>`;
+                }
+                return `<span class="text-gray-400 text-5xl md:text-7xl font-bold mx-1 opacity-70">${char}</span>`;
+            }).join('');
+
+            const html = `
+                ${generateHeader(`終極防線：生字拆彈 (${State.l4.currentIndex + 1}/8)`)}
+                <div class="glass-panel p-6 rounded-2xl flex flex-col items-center relative">
+                    
+                    <div class="absolute top-4 right-6 flex items-center gap-2 text-3xl font-black font-mono transition-colors duration-300">
+                        ${SVGs.clock} <span id="l4-timer">00:${State.l4.timeLeft.toString().padStart(2, '0')}</span>
+                    </div>
+
+                    <div class="mt-8 mb-10 flex items-center justify-center tracking-widest bg-black/40 px-10 py-6 rounded-3xl border border-gray-700 w-full max-w-2xl">
+                        ${wordHtml}
+                    </div>
+
+                    <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div class="bg-sci-panel/60 p-6 rounded-xl border border-sci-blue/30">
+                            <h3 class="text-center text-sci-blue font-bold text-xl mb-4 tracking-widest">選擇聲母 (INITIAL)</h3>
+                            <div class="flex flex-wrap justify-center gap-3">
+                                ${State.l4.optionsI.map((opt) => `
+                                    <button onclick="selectL4Option('i', '${opt}')" id="btn-i-${opt}" class="w-16 h-16 md:w-20 md:h-20 rounded-xl bg-slate-800 border-2 border-slate-600 text-2xl md:text-3xl font-bold hover:bg-slate-700 transition-all">
+                                        ${opt}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="bg-sci-panel/60 p-6 rounded-xl border border-sci-purple/30">
+                            <h3 class="text-center text-sci-purple font-bold text-xl mb-4 tracking-widest">選擇韻母 (FINAL)</h3>
+                            <div class="flex flex-wrap justify-center gap-3">
+                                ${State.l4.optionsF.map((opt) => `
+                                    <button onclick="selectL4Option('f', '${opt}')" id="btn-f-${opt}" class="w-16 h-16 md:w-20 md:h-20 rounded-xl bg-slate-800 border-2 border-slate-600 text-2xl md:text-3xl font-bold hover:bg-slate-700 transition-all">
+                                        ${opt}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="verifyL4()" class="w-full max-w-md bg-gradient-to-r from-sci-danger to-orange-500 text-white font-black text-3xl py-5 rounded-full hover:shadow-[0_0_30px_rgba(239,68,68,0.8)] btn-sci border-4 border-red-300/50">
+                        切斷引線 (DISARM)
+                    </button>
+                </div>
+            `;
+            renderGameUI(html);
+            updateL4SelectionUI(); // 確保重新渲染時選中狀態保留
+        }
+
+        function selectL4Option(type, val) {
+            if (type === 'i') State.l4.selectedInitial = val;
+            if (type === 'f') State.l4.selectedFinal = val;
+            updateL4SelectionUI();
+        }
+
+        function updateL4SelectionUI() {
+            // 重置樣式
+            State.l4.optionsI.forEach(opt => {
+                const btn = document.getElementById(`btn-i-${opt}`);
+                if(btn) btn.className = "w-16 h-16 md:w-20 md:h-20 rounded-xl bg-slate-800 border-2 border-slate-600 text-2xl md:text-3xl font-bold hover:bg-slate-700 transition-all";
+            });
+            State.l4.optionsF.forEach(opt => {
+                const btn = document.getElementById(`btn-f-${opt}`);
+                if(btn) btn.className = "w-16 h-16 md:w-20 md:h-20 rounded-xl bg-slate-800 border-2 border-slate-600 text-2xl md:text-3xl font-bold hover:bg-slate-700 transition-all";
+            });
+
+            // 應用選中樣式
+            if (State.l4.selectedInitial) {
+                const btn = document.getElementById(`btn-i-${State.l4.selectedInitial}`);
+                if(btn) btn.className = "w-16 h-16 md:w-20 md:h-20 rounded-xl bg-sci-blue border-2 border-blue-300 text-2xl md:text-3xl font-bold shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-all transform scale-110";
+            }
+            if (State.l4.selectedFinal) {
+                const btn = document.getElementById(`btn-f-${State.l4.selectedFinal}`);
+                if(btn) btn.className = "w-16 h-16 md:w-20 md:h-20 rounded-xl bg-sci-purple border-2 border-purple-300 text-2xl md:text-3xl font-bold shadow-[0_0_15px_rgba(168,85,247,0.8)] transition-all transform scale-110";
+            }
+        }
+
+        function verifyL4() {
+            if (!State.l4.selectedInitial || !State.l4.selectedFinal) {
+                alert("請先選擇一個聲母和一個韻母！");
+                return;
+            }
+            clearInterval(State.l4.timer);
+
+            const q = State.l4.questions[State.l4.currentIndex];
+            const isCorrect = (State.l4.selectedInitial === q.i && State.l4.selectedFinal === q.f);
+
+            if (isCorrect) {
+                State.score++;
+                showFeedback(true, `${q.target} : ${q.pinyin}`, () => {
+                    State.l4.currentIndex++;
+                    loadQuestion4();
+                });
+            } else {
+                State.lives--;
+                triggerShake();
+                showFeedback(false, `${q.target} : ${q.pinyin}`, () => {
+                    State.l4.currentIndex++;
+                    loadQuestion4();
+                });
+            }
+        }
+
+        function handleL4Timeout() {
+            State.lives--;
+            triggerShake();
+            const q = State.l4.questions[State.l4.currentIndex];
+            showFeedback(false, `超時！ ${q.target} : ${q.pinyin}`, () => {
+                State.l4.currentIndex++;
+                loadQuestion4();
+            });
+        }
+
+        // ================= 結算與排行榜 =================
+        function gameOver(isWin) {
+            State.level = 5;
+            saveScore();
+            
+            const title = isWin ? "拆彈成功，拯救基地！" : "炸彈引爆，任務失敗！";
+            const titleColor = isWin ? "text-sci-green drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]" : "text-sci-danger drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]";
+            const icon = isWin ? SVGs.trophy : SVGs.bomb;
+
+            const leaderboard = getLeaderboard();
+            let rankHtml = leaderboard.map((entry, idx) => `
+                <div class="flex justify-between items-center bg-black/40 p-3 rounded-lg mb-2 border border-gray-700 ${idx === 0 ? 'border-sci-yellow text-sci-yellow' : ''}">
+                    <span class="font-bold text-xl">#${idx + 1} ${entry.name}</span>
+                    <span class="font-mono text-xl">${entry.score} 分</span>
+                </div>
+            `).join('');
+
+            const html = `
+                <div class="glass-panel p-10 rounded-3xl flex flex-col items-center justify-center text-center">
+                    ${icon}
+                    <h1 class="text-5xl md:text-6xl font-black mb-6 ${titleColor}">${title}</h1>
+                    <p class="text-3xl text-white mb-8">
+                        你的成績：<span class="text-sci-yellow font-black">${State.score}</span> / 8 題
+                    </p>
+
+                    <div class="w-full max-w-md bg-sci-panel/80 p-6 rounded-xl border-2 border-sci-blue/50 mb-8">
+                        <h2 class="text-2xl font-bold text-sci-blue mb-4 tracking-widest border-b border-sci-blue/30 pb-2">班級風雲排行榜 (本地)</h2>
+                        ${rankHtml || '<p class="text-gray-400">尚無紀錄</p>'}
+                    </div>
+
+                    <button onclick="location.reload()" class="px-10 py-4 bg-white text-black font-black text-2xl rounded-full hover:bg-gray-200 transition-all btn-sci">
+                        重新執行任務 (RESTART)
+                    </button>
+                </div>
+            `;
+            renderGameUI(html);
+        }
+
+        function saveScore() {
+            const key = 'pinyin_bomb_leaderboard';
+            let board = JSON.parse(localStorage.getItem(key) || '[]');
+            board.push({
+                name: `${State.player.class}-${State.player.id}`,
+                score: State.score,
+                date: new Date().getTime()
+            });
+            // 排序：分數高優先，時間早優先
+            board.sort((a, b) => b.score - a.score || a.date - b.date);
+            board = board.slice(0, 5); // 保留前五名
+            localStorage.setItem(key, JSON.stringify(board));
+        }
+
+        function getLeaderboard() {
+            const key = 'pinyin_bomb_leaderboard';
+            return JSON.parse(localStorage.getItem(key) || '[]');
+        }
+
+        /** ==========================================
+         * 5. 初始化
+         * ========================================== */
+        window.onload = () => {
+            drawLoginScreen();
+        };
+
+    </script>
+</body>
+</html>
