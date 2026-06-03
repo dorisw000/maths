@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 營養師 - 每日飲食追蹤</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #388E3C;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --gray: #888888;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); }
+        
+        /* 導覽列 */
+        header { background-color: var(--primary); color: white; padding: 1rem; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+        header h1 { margin: 0; font-size: 1.5rem; }
+        nav { display: flex; justify-content: center; background: var(--primary-dark); }
+        nav button { flex: 1; padding: 10px; background: none; border: none; color: white; cursor: pointer; font-size: 1rem; transition: 0.3s;}
+        nav button:hover, nav button.active { background: rgba(255,255,255,0.2); }
+
+        /* 主要容器 */
+        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+        .section { display: none; background: var(--card-bg); padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px;}
+        .section.active { display: block; }
+
+        /* 表單與輸入框 */
+        label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; }
+        button.btn-primary { width: 100%; padding: 12px; background-color: var(--primary); color: white; border: none; border-radius: 5px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 20px; transition: 0.3s;}
+        button.btn-primary:hover { background-color: var(--primary-dark); }
+
+        /* 儀表板 */
+        .dashboard-header { text-align: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+        .calories-big { font-size: 2.5rem; font-weight: bold; color: var(--primary); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-card { background: var(--bg); padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-card .value { font-size: 1.5rem; font-weight: bold; }
+
+        /* 歷史紀錄清單 */
+        .food-item { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #eee; }
+        .food-item:last-child { border-bottom: none; }
+        .food-info h4 { margin: 0 0 5px 0; }
+        .food-info p { margin: 0; font-size: 0.85rem; color: var(--gray); }
+        .food-cal { font-weight: bold; color: var(--primary-dark); }
+
+        /* 圖片上傳區 */
+        .upload-area { border: 2px dashed #ddd; padding: 30px; text-align: center; border-radius: 10px; cursor: pointer; margin-bottom: 15px; background: #fafafa;}
+        .upload-area:hover { border-color: var(--primary); }
+        #preview-img { max-width: 100%; max-height: 200px; display: none; margin: 10px auto; border-radius: 5px; }
+        .loader { display: none; text-align: center; margin: 10px 0; color: var(--primary); font-weight: bold;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🍎 AI 營養師追蹤器</h1>
+    </header>
+    <nav id="main-nav" style="display: none;">
+        <button onclick="showSection('dashboard')" id="nav-dashboard" class="active">今日數據</button>
+        <button onclick="showSection('add-food')" id="nav-add-food">紀錄飲食</button>
+        <button onclick="showSection('history')" id="nav-history">歷史紀錄</button>
+        <button onclick="showSection('profile')" id="nav-profile">設定</button>
+    </nav>
+
+    <div class="container">
+        <div id="profile" class="section">
+            <h2 style="margin-top: 0;">個人身體密碼設定</h2>
+            <p style="color: var(--gray); font-size: 0.9rem;">作為營養師，我需要這些資料來為你計算精準的每日總熱量消耗 (TDEE)。</p>
+            
+            <label>性別</label>
+            <select id="gender">
+                <option value="male">男性</option>
+                <option value="female">女性</option>
+            </select>
+
+            <label>年齡 (歲)</label>
+            <input type="number" id="age" placeholder="例如: 30">
+
+            <label>身高 (公分)</label>
+            <input type="number" id="height" placeholder="例如: 175">
+
+            <label>體重 (公斤)</label>
+            <input type="number" id="weight" placeholder="例如: 70">
+
+            <label>每週運動量</label>
+            <select id="activity">
+                <option value="1.2">久坐 (幾乎不運動)</option>
+                <option value="1.375">輕度活動 (每週運動 1-3 天)</option>
+                <option value="1.55">中度活動 (每週運動 3-5 天)</option>
+                <option value="1.725">高度活動 (每週運動 6-7 天)</option>
+                <option value="1.9">極度活動 (高強度體力勞動或訓練)</option>
+            </select>
+
+            <button class="btn-primary" onclick="saveProfile()">儲存並計算目標</button>
+        </div>
+
+        <div id="dashboard" class="section">
+            <div class="dashboard-header">
+                <h3>今日剩餘熱量額度</h3>
+                <div class="calories-big"><span id="dash-remaining">0</span> kcal</div>
+                <p style="color: var(--gray);">目標: <span id="dash-target">0</span> kcal | 已攝取: <span id="dash-consumed">0</span> kcal</p>
+            </div>
+            <h3>今日營養攝取</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="value" id="dash-sugar">0g</div>
+                    <div>糖分</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="dash-fat">0g</div>
+                    <div>脂肪</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="dash-sodium">0mg</div>
+                    <div>鈉</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="dash-protein">0g</div>
+                    <div>蛋白質 (估算)</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="add-food" class="section">
+            <h2 style="margin-top: 0;">上傳食物相片</h2>
+            <div class="upload-area" onclick="document.getElementById('food-image').click()">
+                <p>📸 點擊這裡上傳或拍照</p>
+                <input type="file" id="food-image" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                <img id="preview-img" src="" alt="預覽圖">
+            </div>
+            
+            <div id="ai-loader" class="loader">AI 營養師正在分析食物成分... ⏳</div>
+
+            <div id="nutrition-form" style="display: none;">
+                <h3 style="border-bottom: 1px solid #eee; padding-bottom: 10px;">分析結果 (可手動修正)</h3>
+                <label>食物名稱</label>
+                <input type="text" id="food-name" placeholder="例如: 滷肉飯便當">
+                
+                <label>熱量 (kcal)</label>
+                <input type="number" id="food-cal">
+                
+                <div class="stats-grid">
+                    <div>
+                        <label>糖 (g)</label>
+                        <input type="number" id="food-sugar">
+                    </div>
+                    <div>
+                        <label>脂肪 (g)</label>
+                        <input type="number" id="food-fat">
+                    </div>
+                    <div>
+                        <label>鈉 (mg)</label>
+                        <input type="number" id="food-sodium">
+                    </div>
+                    <div>
+                        <label>蛋白質 (g)</label>
+                        <input type="number" id="food-protein">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="saveFoodLog()">確認紀錄</button>
+            </div>
+        </div>
+
+        <div id="history" class="section">
+            <h2 style="margin-top: 0;">近期飲食紀錄</h2>
+            <label>選擇日期查看</label>
+            <input type="date" id="history-date" onchange="renderHistory()">
+            
+            <div id="history-list" style="margin-top: 20px;">
+                </div>
+            <div id="history-summary" class="dashboard-header" style="margin-top: 20px; display: none;">
+                <h4>該日總計</h4>
+                <p>熱量: <span id="hist-cal">0</span> kcal | 糖: <span id="hist-sugar">0</span>g | 脂肪: <span id="hist-fat">0</span>g | 鈉: <span id="hist-sodium">0</span>mg</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 取得今天的日期字串 (YYYY-MM-DD)
+        function getTodayStr() {
+            const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+            return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+        }
+
+        // 系統初始化
+        window.onload = function() {
+            document.getElementById('history-date').value = getTodayStr();
+            const profile = localStorage.getItem('nutrition_profile');
+            if (!profile) {
+                showSection('profile');
+            } else {
+                document.getElementById('main-nav').style.display = 'flex';
+                showSection('dashboard');
+            }
+        };
+
+        // 切換頁面視圖
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            
+            if(document.getElementById('main-nav').style.display !== 'none') {
+                document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('nav-' + sectionId).classList.add('active');
+            }
+
+            if (sectionId === 'dashboard') renderDashboard();
+            if (sectionId === 'history') renderHistory();
+        }
+
+        // 營養師核心：計算 BMR 與 TDEE (Mifflin-St Jeor 公式)
+        function saveProfile() {
+            const gender = document.getElementById('gender').value;
+            const age = parseInt(document.getElementById('age').value);
+            const height = parseInt(document.getElementById('height').value);
+            const weight = parseInt(document.getElementById('weight').value);
+            const activity = parseFloat(document.getElementById('activity').value);
+
+            if (!age || !height || !weight) {
+                alert("請填寫完整身體資料，營養師才能幫你計算喔！");
+                return;
+            }
+
+            let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+            bmr = gender === 'male' ? bmr + 5 : bmr - 161;
+            const tdee = Math.round(bmr * activity);
+
+            const profile = { gender, age, height, weight, activity, tdee };
+            localStorage.setItem('nutrition_profile', JSON.stringify(profile));
+            
+            alert(`設定成功！根據營養學公式，您每日維持體重的熱量消耗(TDEE)為 ${tdee} 大卡。`);
+            document.getElementById('main-nav').style.display = 'flex';
+            showSection('dashboard');
+        }
+
+        // 取得特定日期的飲食紀錄
+        function getLogs(dateStr) {
+            const logs = localStorage.getItem('nutrition_logs');
+            if (!logs) return [];
+            const parsed = JSON.parse(logs);
+            return parsed[dateStr] || [];
+        }
+
+        // 渲染今日儀表板
+        function renderDashboard() {
+            const profile = JSON.parse(localStorage.getItem('nutrition_profile'));
+            if (!profile) return;
+
+            const todayLogs = getLogs(getTodayStr());
+            let totalCal = 0, totalSugar = 0, totalFat = 0, totalSodium = 0, totalProtein = 0;
+
+            todayLogs.forEach(log => {
+                totalCal += log.cal; totalSugar += log.sugar; totalFat += log.fat; 
+                totalSodium += log.sodium; totalProtein += log.protein;
+            });
+
+            document.getElementById('dash-target').innerText = profile.tdee;
+            document.getElementById('dash-consumed').innerText = totalCal;
+            
+            const remaining = profile.tdee - totalCal;
+            const remEl = document.getElementById('dash-remaining');
+            remEl.innerText = remaining;
+            remEl.style.color = remaining < 0 ? '#d32f2f' : 'var(--primary)'; // 超標變紅色
+
+            document.getElementById('dash-sugar').innerText = totalSugar + 'g';
+            document.getElementById('dash-fat').innerText = totalFat + 'g';
+            document.getElementById('dash-sodium').innerText = totalSodium + 'mg';
+            document.getElementById('dash-protein').innerText = totalProtein + 'g';
+        }
+
+        // 模擬相片上傳與 AI 分析
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 顯示預覽圖
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('preview-img');
+                img.src = e.target.result;
+                img.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+
+            // 模擬 AI 分析載入中
+            document.getElementById('nutrition-form').style.display = 'none';
+            document.getElementById('ai-loader').style.display = 'block';
+
+            // 延遲 1.5 秒模擬後端處理
+            setTimeout(() => {
+                document.getElementById('ai-loader').style.display = 'none';
+                document.getElementById('nutrition-form').style.display = 'block';
+                
+                // 這裡模擬 AI 辨識出的假資料，實務上需串接 AI API
+                document.getElementById('food-name').value = "自動辨識: 綜合健康餐盒 (範例)";
+                document.getElementById('food-cal').value = Math.floor(Math.random() * 400 + 300);
+                document.getElementById('food-sugar').value = Math.floor(Math.random() * 20 + 5);
+                document.getElementById('food-fat').value = Math.floor(Math.random() * 30 + 10);
+                document.getElementById('food-sodium').value = Math.floor(Math.random() * 800 + 200);
+                document.getElementById('food-protein').value = Math.floor(Math.random() * 30 + 15);
+            }, 1500);
+        }
+
+        // 儲存飲食紀錄
+        function saveFoodLog() {
+            const name = document.getElementById('food-name').value;
+            const cal = parseInt(document.getElementById('food-cal').value) || 0;
+            const sugar = parseInt(document.getElementById('food-sugar').value) || 0;
+            const fat = parseInt(document.getElementById('food-fat').value) || 0;
+            const sodium = parseInt(document.getElementById('food-sodium').value) || 0;
+            const protein = parseInt(document.getElementById('food-protein').value) || 0;
+
+            if (!name) { alert("請輸入食物名稱！"); return; }
+
+            const today = getTodayStr();
+            let allLogs = JSON.parse(localStorage.getItem('nutrition_logs') || '{}');
+            if (!allLogs[today]) allLogs[today] = [];
+            
+            allLogs[today].push({ name, cal, sugar, fat, sodium, protein, time: new Date().toLocaleTimeString() });
+            localStorage.setItem('nutrition_logs', JSON.stringify(allLogs));
+
+            alert("紀錄成功！");
+            
+            // 清空表單
+            document.getElementById('preview-img').style.display = 'none';
+            document.getElementById('nutrition-form').style.display = 'none';
+            document.getElementById('food-image').value = '';
+            
+            showSection('dashboard');
+        }
+
+        // 渲染歷史紀錄
+        function renderHistory() {
+            const dateStr = document.getElementById('history-date').value;
+            const logs = getLogs(dateStr);
+            const listEl = document.getElementById('history-list');
+            const summaryEl = document.getElementById('history-summary');
+            
+            listEl.innerHTML = '';
+            
+            if (logs.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; color: var(--gray);">這一天沒有任何飲食紀錄喔！</p>';
+                summaryEl.style.display = 'none';
+                return;
+            }
+
+            let tCal = 0, tSug = 0, tFat = 0, tSod = 0;
+
+            logs.forEach(log => {
+                tCal += log.cal; tSug += log.sugar; tFat += log.fat; tSod += log.sodium;
+                
+                const item = document.createElement('div');
+                item.className = 'food-item';
+                item.innerHTML = `
+                    <div class="food-info">
+                        <h4>${log.name}</h4>
+                        <p>${log.time} | 糖:${log.sugar}g 脂:${log.fat}g 鈉:${log.sodium}mg</p>
+                    </div>
+                    <div class="food-cal">${log.cal} kcal</div>
+                `;
+                listEl.appendChild(item);
+            });
+
+            document.getElementById('hist-cal').innerText = tCal;
+            document.getElementById('hist-sugar').innerText = tSug;
+            document.getElementById('hist-fat').innerText = tFat;
+            document.getElementById('hist-sodium').innerText = tSod;
+            summaryEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
