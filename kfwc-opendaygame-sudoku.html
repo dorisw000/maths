@@ -21,10 +21,12 @@
             user-select: none;
             margin: 0;
             padding: 0;
+            /* 防止觸控時出現原生高光或閃爍 */
+            -webkit-tap-highlight-color: transparent; 
         }
 
         body {
-            padding: 15px;
+            padding: 10px;
             font-family: 'Comic Sans MS', 'Chalkboard SE', 'Microsoft JhengHei', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -32,15 +34,17 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            /* 防止下拉重整 */
+            overscroll-behavior-y: contain; 
         }
 
         #game-container {
             width: 100%;
             max-width: 440px;
             background: var(--panel-bg);
-            border-radius: 32px;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+            border-radius: 28px;
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.06);
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -52,20 +56,20 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         h1 {
-            font-size: 1.6rem;
+            font-size: clamp(1.2rem, 5vw, 1.6rem);
             color: #16a34a;
             text-shadow: 1px 1px 0px #dcfce7;
         }
 
         .level-indicator {
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 4vw, 1.1rem);
             font-weight: bold;
             background: #dcfce7;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 16px;
             color: #15803d;
         }
@@ -74,13 +78,14 @@
             background: #f43f5e;
             color: white;
             border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
+            padding: 8px 16px;
+            font-size: clamp(0.9rem, 4vw, 1rem);
             font-weight: bold;
-            border-radius: 16px;
+            border-radius: 14px;
             cursor: pointer;
             box-shadow: 0 4px 0 #be123c;
             transition: all 0.1s ease;
+            touch-action: manipulation;
         }
         .btn:active {
             transform: translateY(3px);
@@ -91,12 +96,13 @@
         #sudoku-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            border: 6px solid var(--block-border);
-            border-radius: 24px;
+            border: 5px solid var(--block-border);
+            border-radius: 20px;
             background: var(--block-border);
             overflow: hidden;
-            margin-bottom: 22px;
-            box-shadow: 0 8px 16px rgba(249, 115, 22, 0.15);
+            margin-bottom: 18px;
+            box-shadow: 0 6px 12px rgba(249, 115, 22, 0.15);
+            touch-action: none; /* 防止喺格仔上面滑動時拖動整個網頁 */
         }
 
         .grid-cell {
@@ -106,98 +112,101 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 5px;
+            padding: 4px;
             position: relative;
             cursor: pointer;
             transition: background-color 0.2s;
+            touch-action: manipulation;
         }
 
         /* 2x2 宮格粗邊框加強區隔 */
-        .grid-cell[data-col="1"] { border-right: 6px solid var(--block-border); }
-        .grid-cell[data-row="1"] { border-bottom: 6px solid var(--block-border); }
+        .grid-cell[data-col="1"] { border-right: 5px solid var(--block-border); }
+        .grid-cell[data-row="1"] { border-bottom: 5px solid var(--block-border); }
 
-        /* 預設鎖定格子（題目） */
         .grid-cell.locked {
             background-color: var(--locked-bg);
             cursor: not-allowed;
         }
 
-        /* 拖曳中懸停在格子上的效果 */
         .grid-cell.drag-hover {
             background-color: #fef08a;
         }
 
-        /* 核心圖案容器（防破圖保險機制） */
+        /* 核心圖案容器 */
         .graphic-box {
             position: relative;
             width: 100%;
             height: 100%;
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             font-weight: 900;
-            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.1);
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.1);
             animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
-        /* 幼兒溫和色彩與文字圖卡設計 */
         .box-1 { background-color: #fef08a; color: #a16207; border: 2px solid #fde047; }
         .box-2 { background-color: #fee2e2; color: #b91c1c; border: 2px solid #fca5a5; }
         .box-3 { background-color: #ffedd5; color: #c2410c; border: 2px solid #fed7aa; }
         .box-4 { background-color: #e0f2fe; color: #0369a1; border: 2px solid #bae6fd; }
 
-        .box-emoji { font-size: 1.1rem; margin-bottom: 1px; }
-        .box-label { font-size: 1.3rem; letter-spacing: 1px; }
+        .box-emoji { font-size: clamp(0.9rem, 4.5vw, 1.1rem); margin-bottom: 1px; }
+        .box-label { font-size: clamp(1rem, 5.5vw, 1.3rem); letter-spacing: 1px; }
 
-        /* 真正實體圖片 */
         .graphic-box img {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             object-fit: contain;
             z-index: 5;
-            border-radius: 14px;
+            border-radius: 12px;
             pointer-events: none;
         }
 
-        /* 底部工具列 */
+        /* 底部工具列 (全面改用彈性佈局，適應手機寬度) */
         #toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: #eff6ff;
-            padding: 14px;
-            border-radius: 24px;
+            padding: 10px;
+            border-radius: 20px;
             border: 3px dashed #3b82f6;
+            gap: 6px;
         }
 
         .tool-item {
-            width: 66px; height: 66px;
+            flex: 1; /* 根據畫面自動平分寬度 */
+            max-width: 66px;
+            aspect-ratio: 1; /* 確保永遠保持正方形 */
+            height: auto;
             background: white;
-            border-radius: 18px;
-            cursor: grab;
+            border-radius: 14px;
+            cursor: pointer; /* 手機上主要依賴點擊 */
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             padding: 2px;
             position: relative;
+            touch-action: manipulation;
         }
 
         .tool-item.eraser .graphic-box {
             background-color: #f1f5f9; color: #64748b; border: 2px dashed #cbd5e1;
         }
 
+        /* 手機版與電腦版的按壓/選取效果 */
         .tool-item:hover, .tool-item.dragging, .tool-item.active-selected {
-            transform: scale(1.18);
-            box-shadow: 0 0 0 4px #f97316, 0 12px 20px rgba(249, 115, 22, 0.3);
-            cursor: grabbing; z-index: 10;
+            transform: scale(1.12);
+            box-shadow: 0 0 0 3px #f97316, 0 8px 15px rgba(249, 115, 22, 0.3);
+            z-index: 10;
         }
 
         .hint-text {
-            font-size: 0.95rem; color: #64748b; margin-top: 12px; font-weight: bold;
+            font-size: clamp(0.8rem, 4vw, 0.95rem); color: #64748b; margin-top: 14px; font-weight: bold;
         }
 
-        /* 通關慶祝 與 鼓勵彈窗 共用樣式 */
+        /* 彈窗樣式 */
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -206,27 +215,33 @@
             z-index: 100;
             transform: translateY(100%);
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border-radius: 28px;
+            border-radius: 24px;
+            padding: 20px;
         }
         .overlay.show { transform: translateY(0); }
 
         .overlay-title {
-            font-size: 2rem; margin-bottom: 24px; font-weight: bold; line-height: 1.4;
+            font-size: clamp(1.4rem, 6vw, 2rem); margin-bottom: 24px; font-weight: bold; line-height: 1.4;
         }
 
-        /* 成功綠色調 */
         .win-title { color: #10b981; animation: popPulse 0.5s ease-out forwards, bounce 0.6s infinite alternate 0.5s; }
-        .btn-next { background: #10b981; box-shadow: 0 5px 0 #047857; font-size: 1.3rem; padding: 12px 36px; border-radius: 20px; color: white; border: none; cursor: pointer; }
+        .btn-next { background: #10b981; box-shadow: 0 5px 0 #047857; font-size: clamp(1.1rem, 5vw, 1.3rem); padding: 12px 30px; border-radius: 20px; color: white; border: none; cursor: pointer; touch-action: manipulation;}
         .btn-next:active { box-shadow: 0 1px 0 #047857; transform: translateY(4px); }
 
-        /* 鼓勵橙黃色調 */
-        .encourage-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards; font-size: 1.6rem; }
-        .btn-try-again { background: #f59e0b; box-shadow: 0 5px 0 #b45309; font-size: 1.3rem; padding: 12px 36px; border-radius: 20px; color: white; border: none; cursor: pointer; }
+        .encourage-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.2rem, 5.5vw, 1.6rem); }
+        .btn-try-again { background: #f59e0b; box-shadow: 0 5px 0 #b45309; font-size: clamp(1.1rem, 5vw, 1.3rem); padding: 12px 30px; border-radius: 20px; color: white; border: none; cursor: pointer; touch-action: manipulation;}
         .btn-try-again:active { box-shadow: 0 1px 0 #b45309; transform: translateY(4px); }
+
+        /* 小螢幕專屬微調（針對特細手機，例如 iPhone SE 等） */
+        @media (max-width: 380px) {
+            #game-container { padding: 14px; border-width: 4px; }
+            .tool-item { border-radius: 10px; }
+            .graphic-box { border-radius: 8px; }
+        }
 
         @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes popPulse { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        @keyframes bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-15px); } }
+        @keyframes bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-10px); } }
     </style>
 </head>
 <body>
@@ -266,12 +281,12 @@
         </div>
         <div class="tool-item eraser" draggable="true" data-value="0">
             <div class="graphic-box">
-                <span class="box-emoji" style="font-size:1.4rem;">❌</span><span class="box-label" style="font-size:0.8rem;">擦除</span>
+                <span class="box-emoji" style="font-size:clamp(1rem, 5vw, 1.4rem);">❌</span><span class="box-label" style="font-size:clamp(0.6rem, 3.5vw, 0.8rem);">擦除</span>
             </div>
         </div>
     </div>
     
-    <p class="hint-text">💡 拖曳圖案，或「先點圖案再點空格」都能填空喔！</p>
+    <p class="hint-text">💡 電腦可拖曳；手機平版「先點圖案再點空格」即可！</p>
 
     <div id="win-overlay" class="overlay">
         <div class="overlay-title win-title" id="win-message">太棒了！<br>你全部答對了！ 🎉👏</div>
@@ -279,7 +294,7 @@
     </div>
 
     <div id="encourage-overlay" class="overlay">
-        <div class="overlay-title encourage-title">不正確，再檢查一下吧！ 💪</div>
+        <div class="overlay-title encourage-title">不正確，再檢查一下吧！💪</div>
         <button class="btn-try-again" id="btn-try-again">繼續努力 🛠️</button>
     </div>
 </div>
@@ -293,27 +308,36 @@
         4: { text: '真', emoji: '🌍' }
     };
 
-    const LEVELS = [
-        { initial: [0, 1, 2, 3, 2, 0, 0, 1, 0, 0, 3, 4, 0, 4, 0, 0] },
-        { initial: [1, 0, 3, 0, 0, 2, 1, 4, 4, 3, 0, 0, 2, 0, 4, 3] },
-        { initial: [4, 0, 2, 0, 0, 3, 4, 1, 1, 2, 0, 0, 0, 4, 1, 2] },
-        { initial: [1, 4, 0, 2, 3, 0, 0, 4, 0, 3, 2, 0, 2, 0, 4, 0] },
-        { initial: [0, 1, 3, 0, 2, 0, 4, 1, 1, 0, 0, 4, 3, 4, 0, 0] },
-        { initial: [2, 0, 4, 1, 0, 1, 2, 0, 3, 4, 0, 0, 0, 2, 3, 4] },
-        { initial: [0, 3, 4, 0, 4, 0, 0, 3, 3, 4, 1, 0, 1, 0, 3, 4] },
-        { initial: [4, 1, 0, 0, 2, 0, 0, 1, 0, 2, 3, 0, 3, 0, 0, 2] },
-        { initial: [0, 4, 3, 0, 3, 0, 0, 4, 4, 3, 0, 0, 0, 1, 4, 3] },
-        { initial: [2, 3, 0, 0, 0, 0, 2, 3, 3, 4, 1, 0, 0, 2, 0, 4] },
-        { initial: [3, 0, 1, 2, 0, 2, 0, 0, 2, 3, 4, 0, 0, 0, 0, 3] },
-        { initial: [0, 4, 1, 0, 1, 0, 0, 4, 2, 0, 4, 1, 0, 1, 0, 0] },
-        { initial: [4, 0, 2, 0, 0, 3, 0, 0, 1, 0, 3, 0, 0, 4, 0, 2] },
-        { initial: [0, 4, 0, 2, 3, 0, 1, 0, 0, 3, 0, 0, 2, 0, 4, 3] },
-        { initial: [2, 0, 4, 0, 4, 1, 0, 0, 0, 0, 1, 2, 0, 2, 0, 0] },
-        { initial: [3, 4, 0, 0, 0, 0, 3, 4, 2, 0, 0, 1, 0, 1, 2, 0] },
-        { initial: [0, 1, 2, 3, 0, 0, 0, 1, 1, 0, 0, 0, 3, 4, 0, 0] },
-        { initial: [1, 0, 3, 0, 0, 2, 0, 4, 4, 0, 0, 0, 0, 0, 4, 3] },
-        { initial: [2, 3, 0, 0, 0, 1, 2, 0, 0, 0, 1, 2, 0, 0, 3, 0] },
-        { initial: [3, 0, 0, 2, 1, 2, 0, 0, 0, 0, 4, 1, 0, 1, 0, 0] }
+const LEVELS = [
+        // 🟢 【新手入門】 (只留 3-5 個空格)
+        { initial: [1, 2, 3, 0, 3, 4, 1, 2, 2, 1, 0, 3, 4, 0, 2, 1] }, // 關卡 1
+        { initial: [4, 3, 2, 1, 1, 0, 4, 3, 3, 4, 1, 0, 2, 1, 0, 0] }, // 關卡 2
+        { initial: [0, 1, 4, 3, 4, 3, 0, 1, 1, 0, 3, 4, 3, 4, 1, 0] }, // 關卡 3
+        { initial: [3, 4, 1, 2, 2, 0, 0, 3, 4, 3, 2, 0, 0, 2, 3, 4] }, // 關卡 4
+
+        // 🟡 【初級挑戰】 (留 6-8 個空格)
+        { initial: [1, 2, 0, 4, 0, 4, 1, 0, 2, 0, 4, 3, 4, 3, 0, 1] }, // 關卡 5
+        { initial: [4, 0, 2, 1, 1, 2, 0, 3, 3, 0, 1, 2, 0, 1, 3, 0] }, // 關卡 6
+        { initial: [2, 1, 0, 3, 4, 0, 2, 0, 0, 2, 3, 4, 3, 0, 0, 2] }, // 關卡 7
+        { initial: [3, 0, 1, 0, 2, 1, 0, 3, 0, 3, 2, 0, 1, 0, 3, 4] }, // 關卡 8
+        { initial: [1, 2, 0, 0, 0, 4, 1, 0, 0, 1, 4, 0, 0, 0, 2, 1] }, // 關卡 9
+
+        // 🟠 【中級思維】 (留 8-9 個空格)
+        { initial: [0, 3, 2, 0, 1, 0, 0, 3, 3, 0, 0, 2, 0, 1, 3, 0] }, // 關卡 10
+        { initial: [2, 0, 0, 3, 0, 3, 2, 0, 0, 2, 3, 0, 3, 0, 0, 2] }, // 關卡 11
+        { initial: [3, 0, 0, 2, 0, 1, 0, 0, 4, 0, 2, 0, 0, 2, 3, 0] }, // 關卡 12
+        { initial: [0, 2, 3, 0, 3, 0, 0, 2, 0, 1, 0, 0, 4, 0, 0, 1] }, // 關卡 13
+        { initial: [4, 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 2, 0, 0, 3, 4] }, // 關卡 14
+
+        // 🔴 【高級邏輯】 (只有 6 個提示圖案)
+        { initial: [2, 0, 0, 0, 0, 3, 2, 0, 0, 0, 3, 4, 3, 0, 0, 0] }, // 關卡 15
+        { initial: [0, 4, 1, 0, 2, 0, 0, 0, 0, 0, 2, 1, 1, 0, 0, 0] }, // 關卡 16
+        { initial: [1, 0, 0, 4, 0, 4, 0, 0, 0, 0, 4, 3, 0, 0, 2, 0] }, // 關卡 17
+
+        // 🔥 【大師考驗】 (極限挑戰，只有 5 個提示圖案)
+        { initial: [4, 0, 0, 0, 0, 2, 0, 3, 3, 0, 0, 0, 0, 1, 0, 0] }, // 關卡 18
+        { initial: [0, 1, 0, 0, 4, 0, 0, 0, 0, 0, 3, 4, 0, 0, 1, 0] }, // 關卡 19
+        { initial: [3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0, 0, 0] }  // 關卡 20
     ];
 
     let currentLevelIndex = 0;
@@ -396,6 +420,7 @@
             if (draggedValue !== null) fillCell(cell, draggedValue);
         });
 
+        // 支援手機與平板的最穩定做法：點擊工具再點擊空格
         cell.addEventListener('click', (e) => {
             e.stopPropagation();
             if (selectedValue !== null) fillCell(cell, selectedValue);
@@ -407,7 +432,6 @@
         currentGrid[idx] = value;
         createGraphicCard(cell, value);
 
-        // 💡 每次填入後，檢查畫面係咪已經填滿
         let isBoardFull = true;
         for (let i = 0; i < 16; i++) {
             if (currentGrid[i] === 0) {
@@ -416,12 +440,10 @@
             }
         }
 
-        // 如果填滿咗，就進行對錯判斷
         if (isBoardFull) {
             if (checkWin()) {
                 showWinCelebration();
             } else {
-                // 如果填滿但錯咗，就彈出鼓勵視窗
                 encourageOverlay.classList.add('show');
             }
         }
@@ -487,7 +509,6 @@
         winOverlay.classList.add('show');
     }
 
-    // 💡 點擊「繼續努力」，隱藏鼓勵彈窗，畀小朋友繼續修改
     btnTryAgain.addEventListener('click', () => {
         encourageOverlay.classList.remove('show');
     });
