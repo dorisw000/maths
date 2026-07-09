@@ -13,6 +13,8 @@
             --cell-border: #fed7aa;
             --block-border: #f97316;
             --locked-bg: #f1f5f9;
+            /* 核心：自動根據螢幕高度或寬度算出最完美的尺寸，最大不超過 440px */
+            --game-width: min(94vw, 85dvh, 440px);
         }
 
         * {
@@ -24,29 +26,33 @@
         }
 
         body {
-            padding: 15px;
             font-family: 'Comic Sans MS', 'Chalkboard SE', 'Microsoft JhengHei', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            /* 新增：防止畫面縮放時出現多餘的滾動條 */
-            overflow: hidden; 
+            
+            /* 解決 iPhone/iPad 視窗高度問題 */
+            min-height: 100vh; 
+            min-height: 100dvh; 
+            
+            overflow: hidden; /* 隱藏所有滾動條 */
+            touch-action: none; /* 防止 iOS 畫面的橡皮筋回彈與意外滾動 */
         }
 
         #game-container {
-            width: 100%;
-            max-width: 440px;
+            width: var(--game-width);
             background: var(--panel-bg);
-            border-radius: 32px;
-            padding: 24px;
+            border-radius: clamp(16px, 4vw, 32px);
+            padding: clamp(12px, 3vw, 24px);
             box-shadow: 0 20px 40px rgba(0,0,0,0.06);
             text-align: center;
             position: relative;
-            overflow: hidden;
-            border: 5px solid #bbf7d0;
+            border: clamp(3px, 1vw, 5px) solid #bbf7d0;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(10px, 2dvh, 18px); /* 元件之間的距離自動適應高度 */
         }
 
         /* 頂部控制列 */
@@ -54,20 +60,20 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 18px;
         }
 
         h1 {
-            font-size: 1.6rem;
+            font-size: clamp(1.1rem, 4vw, 1.6rem); /* 自動縮小字體 */
             color: #16a34a;
             text-shadow: 1px 1px 0px #dcfce7;
+            display: none; /* 原本代碼中無 h1 標籤，保留設定以防萬一 */
         }
 
         .level-indicator {
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
             font-weight: bold;
             background: #dcfce7;
-            padding: 8px 16px;
+            padding: clamp(4px, 1.5vw, 8px) clamp(10px, 3vw, 16px);
             border-radius: 16px;
             color: #15803d;
         }
@@ -76,8 +82,8 @@
             background: #f43f5e;
             color: white;
             border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
+            padding: clamp(6px, 2vw, 10px) clamp(12px, 3vw, 20px);
+            font-size: clamp(0.85rem, 3vw, 1rem);
             font-weight: bold;
             border-radius: 16px;
             cursor: pointer;
@@ -91,50 +97,43 @@
 
         /* 數獨主網格 */
         #sudoku-grid {
+            width: 100%;
+            aspect-ratio: 1; /* 強制保持完美的正方形 */
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            border: 6px solid var(--block-border);
-            border-radius: 24px;
+            border: clamp(3px, 1vw, 6px) solid var(--block-border);
+            border-radius: clamp(12px, 3vw, 24px);
             background: var(--block-border);
             overflow: hidden;
-            margin-bottom: 22px;
             box-shadow: 0 8px 16px rgba(249, 115, 22, 0.15);
         }
 
         .grid-cell {
             aspect-ratio: 1;
             background: white;
-            border: 2px solid var(--cell-border);
+            border: clamp(1px, 0.5vw, 2px) solid var(--cell-border);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 5px;
+            padding: clamp(2px, 1vw, 5px);
             position: relative;
             cursor: pointer;
             transition: background-color 0.2s;
         }
 
-        /* 2x2 宮格粗邊框加強區隔 */
-        .grid-cell[data-col="1"] { border-right: 6px solid var(--block-border); }
-        .grid-cell[data-row="1"] { border-bottom: 6px solid var(--block-border); }
+        /* 2x2 宮格粗邊框加強區隔 (動態縮放粗細) */
+        .grid-cell[data-col="1"] { border-right: clamp(3px, 1vw, 6px) solid var(--block-border); }
+        .grid-cell[data-row="1"] { border-bottom: clamp(3px, 1vw, 6px) solid var(--block-border); }
 
-        /* 預設鎖定格子（題目） */
-        .grid-cell.locked {
-            background-color: var(--locked-bg);
-            cursor: not-allowed;
-        }
+        .grid-cell.locked { background-color: var(--locked-bg); cursor: not-allowed; }
+        .grid-cell.drag-hover { background-color: #fef08a; }
 
-        /* 拖曳中懸停在格子上的效果 */
-        .grid-cell.drag-hover {
-            background-color: #fef08a;
-        }
-
-        /* 核心圖案容器（防破圖保險機制） */
+        /* 核心圖案容器 */
         .graphic-box {
             position: relative;
             width: 100%;
             height: 100%;
-            border-radius: 14px;
+            border-radius: clamp(8px, 2vw, 14px);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -144,23 +143,21 @@
             animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
-        /* 幼兒溫和色彩與文字圖卡設計 */
         .box-1 { background-color: #fef08a; color: #a16207; border: 2px solid #fde047; }
         .box-2 { background-color: #fee2e2; color: #b91c1c; border: 2px solid #fca5a5; }
         .box-3 { background-color: #ffedd5; color: #c2410c; border: 2px solid #fed7aa; }
         .box-4 { background-color: #e0f2fe; color: #0369a1; border: 2px solid #bae6fd; }
 
-        .box-emoji { font-size: 1.1rem; margin-bottom: 1px; }
-        .box-label { font-size: 1.3rem; letter-spacing: 1px; }
+        .box-emoji { font-size: clamp(0.8rem, 3.5vw, 1.1rem); margin-bottom: 1px; }
+        .box-label { font-size: clamp(0.8rem, 3.5vw, 1.3rem); letter-spacing: 1px; }
 
-        /* 真正實體圖片 */
         .graphic-box img {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             object-fit: contain;
             z-index: 5;
-            border-radius: 14px;
+            border-radius: clamp(8px, 2vw, 14px);
             pointer-events: none;
         }
 
@@ -170,15 +167,18 @@
             justify-content: space-between;
             align-items: center;
             background: #eff6ff;
-            padding: 14px;
-            border-radius: 24px;
-            border: 3px dashed #3b82f6;
+            padding: clamp(6px, 2vw, 14px);
+            border-radius: clamp(12px, 3vw, 24px);
+            border: clamp(2px, 0.5vw, 3px) dashed #3b82f6;
+            gap: 4px;
         }
 
         .tool-item {
-            width: 66px; height: 66px;
+            flex: 1; /* 讓 5 個按鈕自動均分寬度 */
+            aspect-ratio: 1; /* 自動保持方形 */
+            max-width: 66px; 
             background: white;
-            border-radius: 18px;
+            border-radius: clamp(8px, 2vw, 18px);
             cursor: grab;
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             padding: 2px;
@@ -188,6 +188,9 @@
         .tool-item.eraser .graphic-box {
             background-color: #f1f5f9; color: #64748b; border: 2px dashed #cbd5e1;
         }
+        
+        .tool-item.eraser .box-emoji { font-size: clamp(1rem, 4.5vw, 1.4rem) !important; }
+        .tool-item.eraser .box-label { font-size: clamp(0.6rem, 2.5vw, 0.8rem) !important; }
 
         .tool-item:hover, .tool-item.dragging, .tool-item.active-selected {
             transform: scale(1.18);
@@ -196,10 +199,13 @@
         }
 
         .hint-text {
-            font-size: 0.95rem; color: #64748b; margin-top: 12px; font-weight: bold;
+            font-size: clamp(0.75rem, 3vw, 0.95rem); 
+            color: #64748b; 
+            margin: 0; 
+            font-weight: bold;
         }
 
-        /* 通關慶祝 與 鼓勵彈窗 共用樣式 */
+        /* 彈窗樣式 */
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -208,22 +214,25 @@
             z-index: 100;
             transform: translateY(100%);
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border-radius: 28px;
+            border-radius: clamp(16px, 4vw, 32px);
         }
         .overlay.show { transform: translateY(0); }
 
-        .overlay-title {
-            font-size: 2rem; margin-bottom: 24px; font-weight: bold; line-height: 1.4;
-        }
-
-        /* 成功綠色調 */
+        .overlay-title { font-size: clamp(1.5rem, 6vw, 2rem); margin-bottom: 24px; font-weight: bold; line-height: 1.4; }
         .win-title { color: #10b981; animation: popPulse 0.5s ease-out forwards, bounce 0.6s infinite alternate 0.5s; }
-        .btn-next { background: #10b981; box-shadow: 0 5px 0 #047857; font-size: 1.3rem; padding: 12px 36px; border-radius: 20px; color: white; border: none; cursor: pointer; }
+        .encourage-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.2rem, 5vw, 1.6rem); }
+        
+        .btn-next, .btn-try-again {
+            font-size: clamp(1rem, 4vw, 1.3rem); 
+            padding: 12px 36px; 
+            border-radius: 20px; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+        }
+        .btn-next { background: #10b981; box-shadow: 0 5px 0 #047857; }
         .btn-next:active { box-shadow: 0 1px 0 #047857; transform: translateY(4px); }
-
-        /* 鼓勵橙黃色調 */
-        .encourage-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards; font-size: 1.6rem; }
-        .btn-try-again { background: #f59e0b; box-shadow: 0 5px 0 #b45309; font-size: 1.3rem; padding: 12px 36px; border-radius: 20px; color: white; border: none; cursor: pointer; }
+        .btn-try-again { background: #f59e0b; box-shadow: 0 5px 0 #b45309; }
         .btn-try-again:active { box-shadow: 0 1px 0 #b45309; transform: translateY(4px); }
 
         @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
@@ -268,12 +277,12 @@
         </div>
         <div class="tool-item eraser" draggable="true" data-value="0">
             <div class="graphic-box">
-                <span class="box-emoji" style="font-size:1.4rem;">❌</span><span class="box-label" style="font-size:0.8rem;">擦除</span>
+                <span class="box-emoji">❌</span><span class="box-label">擦除</span>
             </div>
         </div>
     </div>
     
-    <p class="hint-text">💡 拖曳圖案，或「先點圖案再點空格」都能填空喔！</p>
+    <p class="hint-text">💡 點選下方圖案，再點擊空格填寫喔！</p>
 
     <div id="win-overlay" class="overlay">
         <div class="overlay-title win-title" id="win-message">太棒了！<br>你全部答對了！ 🎉👏</div>
@@ -409,7 +418,6 @@
         currentGrid[idx] = value;
         createGraphicCard(cell, value);
 
-        // 💡 每次填入後，檢查畫面係咪已經填滿
         let isBoardFull = true;
         for (let i = 0; i < 16; i++) {
             if (currentGrid[i] === 0) {
@@ -418,12 +426,10 @@
             }
         }
 
-        // 如果填滿咗，就進行對錯判斷
         if (isBoardFull) {
             if (checkWin()) {
                 showWinCelebration();
             } else {
-                // 如果填滿但錯咗，就彈出鼓勵視窗
                 encourageOverlay.classList.add('show');
             }
         }
@@ -489,7 +495,6 @@
         winOverlay.classList.add('show');
     }
 
-    // 💡 點擊「繼續努力」，隱藏鼓勵彈窗，畀小朋友繼續修改
     btnTryAgain.addEventListener('click', () => {
         encourageOverlay.classList.remove('show');
     });
@@ -507,35 +512,6 @@
     });
 
     initLevel(0);
-
-    // ==========================================
-    // 新增：自動縮放畫面以適應不同裝置螢幕 (iPad/手機)
-    // ==========================================
-    function autoScale() {
-        const container = document.getElementById('game-container');
-        // 先暫時重置 transform 以取得原本正確的原始尺寸
-        container.style.transform = 'none';
-        
-        // 取得視窗可用寬度與高度 (並扣除一些安全邊距)
-        const margin = 30; 
-        const scaleWidth = window.innerWidth / (container.offsetWidth + margin);
-        const scaleHeight = window.innerHeight / (container.offsetHeight + margin);
-        
-        // 取得最佳的縮放比例，確保不會超出畫面。最大不超過 1（保留原始大小不強制放大）
-        const scale = Math.min(scaleWidth, scaleHeight, 1);
-        
-        // 將算出的比例應用到遊戲容器上
-        container.style.transform = `scale(${scale})`;
-        container.style.transformOrigin = 'center center';
-    }
-
-    // 監聽視窗大小改變與螢幕旋轉事件，即時更新畫面縮放
-    window.addEventListener('resize', autoScale);
-    window.addEventListener('orientationchange', autoScale);
-    
-    // 遊戲初始化後執行一次自動縮放
-    autoScale();
-
 </script>
 
 </body>
