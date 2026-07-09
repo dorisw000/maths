@@ -525,8 +525,8 @@
         const scale = Math.min(scaleWidth, scaleHeight, 1);
         
         // 將算出的比例應用到遊戲容器上
-        /*container.style.transform = `scale(${scale})`;
-        container.style.transformOrigin = 'center center';*/
+        container.style.transform = `scale(${scale})`;
+        container.style.transformOrigin = 'center center';
     }
 
     // 監聽視窗大小改變與螢幕旋轉事件，即時更新畫面縮放
