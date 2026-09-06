@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>嘉福榮真 數獨挑戰 🌟</title>
+    <style>
+        :root {
+            --bg-color: #f0fdf4;
+            --panel-bg: #ffffff;
+            --primary-color: #ff9800;
+            --text-color: #334155;
+            --cell-border: #fed7aa;
+            --block-border: #f97316;
+            --locked-bg: #f1f5f9;
+            /* 核心：自動根據螢幕高度或寬度算出最完美的尺寸，最大不超過 440px */
+            --game-width: min(94vw, 85dvh, 440px);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+            /* 解決 iPhone/iPad 視窗高度問題 */
+            min-height: 100vh; 
+            min-height: 100dvh; 
+            
+            overflow: hidden; /* 隱藏所有滾動條 */
+            touch-action: none; /* 防止 iOS 畫面的橡皮筋回彈與意外滾動 */
+        }
+
+        #game-container {
+            width: var(--game-width);
+            background: var(--panel-bg);
+            border-radius: clamp(16px, 4vw, 32px);
+            padding: clamp(12px, 3vw, 24px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+            text-align: center;
+            position: relative;
+            border: clamp(3px, 1vw, 5px) solid #bbf7d0;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(10px, 2dvh, 18px); /* 元件之間的距離自動適應高度 */
+        }
+
+        /* 頂部控制列 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .level-indicator {
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
+            font-weight: bold;
+            background: #dcfce7;
+            padding: clamp(4px, 1.5vw, 8px) clamp(10px, 3vw, 16px);
+            border-radius: 16px;
+            color: #15803d;
+            white-space: nowrap; /* 確保關卡字句在同一行顯示 */
+        }
+
+        .timer-display {
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
+            font-weight: bold;
+            background: #fee2e2;
+            padding: clamp(4px, 1.5vw, 8px) clamp(10px, 3vw, 16px);
+            border-radius: 16px;
+            color: #ef4444;
+            display: none; /* 初始隱藏，第一關才顯示 */
+        }
+
+        .btn {
+            background: #f43f5e;
+            color: white;
+            border: none;
+            padding: clamp(6px, 2vw, 10px) clamp(12px, 3vw, 20px);
+            font-size: clamp(0.85rem, 3vw, 1rem);
+            font-weight: bold;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #be123c;
+            transition: all 0.1s ease;
+        }
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #be123c;
+        }
+
+        /* 數獨主網格 */
+        #sudoku-grid {
+            width: 100%;
+            aspect-ratio: 1; /* 強制保持完美的正方形 */
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border: clamp(3px, 1vw, 6px) solid var(--block-border);
+            border-radius: clamp(12px, 3vw, 24px);
+            background: var(--block-border);
+            overflow: hidden;
+            box-shadow: 0 8px 16px rgba(249, 115, 22, 0.15);
+        }
+
+        /* 練習關卡的 2x2 專屬樣式 */
+        #sudoku-grid.practice-grid {
+            grid-template-columns: repeat(2, 1fr);
+            width: 70%; /* 稍微縮小練習關卡的大小 */
+            margin: 0 auto;
+        }
+        #sudoku-grid.practice-grid .grid-cell[data-col="1"] { border-right: none; }
+        #sudoku-grid.practice-grid .grid-cell[data-row="1"] { border-bottom: none; }
+
+        .grid-cell {
+            aspect-ratio: 1;
+            background: white;
+            border: clamp(1px, 0.5vw, 2px) solid var(--cell-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(2px, 1vw, 5px);
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        /* 4x4 下的 2x2 宮格粗邊框加強區隔 (動態縮放粗細) */
+        #sudoku-grid:not(.practice-grid) .grid-cell[data-col="1"] { border-right: clamp(3px, 1vw, 6px) solid var(--block-border); }
+        #sudoku-grid:not(.practice-grid) .grid-cell[data-row="1"] { border-bottom: clamp(3px, 1vw, 6px) solid var(--block-border); }
+
+        .grid-cell.locked { background-color: var(--locked-bg); cursor: not-allowed; }
+        .grid-cell.drag-hover { background-color: #fef08a; }
+
+        /* 核心圖案容器 */
+        .graphic-box {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: clamp(8px, 2vw, 14px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.1);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .box-1 { background-color: #fef08a; color: #a16207; border: 2px solid #fde047; }
+        .box-2 { background-color: #fee2e2; color: #b91c1c; border: 2px solid #fca5a5; }
+        .box-3 { background-color: #ffedd5; color: #c2410c; border: 2px solid #fed7aa; }
+        .box-4 { background-color: #e0f2fe; color: #0369a1; border: 2px solid #bae6fd; }
+
+        .box-emoji { font-size: clamp(0.8rem, 3.5vw, 1.1rem); margin-bottom: 1px; }
+        .box-label { font-size: clamp(0.8rem, 3.5vw, 1.3rem); letter-spacing: 1px; }
+
+        .graphic-box img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
+            z-index: 5;
+            border-radius: clamp(8px, 2vw, 14px);
+            pointer-events: none;
+        }
+
+        /* 底部工具列 */
+        #toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #eff6ff;
+            padding: clamp(6px, 2vw, 14px);
+            border-radius: clamp(12px, 3vw, 24px);
+            border: clamp(2px, 0.5vw, 3px) dashed #3b82f6;
+            gap: 4px;
+        }
+
+        .tool-item {
+            flex: 1; /* 讓 5 個按鈕自動均分寬度 */
+            aspect-ratio: 1; /* 自動保持方形 */
+            max-width: 66px; 
+            background: white;
+            border-radius: clamp(8px, 2vw, 18px);
+            cursor: grab;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 2px;
+            position: relative;
+        }
+
+        .tool-item.eraser .graphic-box {
+            background-color: #f1f5f9; color: #64748b; border: 2px dashed #cbd5e1;
+        }
+        
+        .tool-item.eraser .box-emoji { font-size: clamp(1rem, 4.5vw, 1.4rem) !important; }
+        .tool-item.eraser .box-label { font-size: clamp(0.6rem, 2.5vw, 0.8rem) !important; }
+
+        .tool-item:hover, .tool-item.dragging, .tool-item.active-selected {
+            transform: scale(1.18);
+            box-shadow: 0 0 0 4px #f97316, 0 12px 20px rgba(249, 115, 22, 0.3);
+            cursor: grabbing; z-index: 10;
+        }
+
+        .hint-text {
+            font-size: clamp(0.75rem, 3vw, 0.95rem); 
+            color: #64748b; 
+            margin: 0; 
+            font-weight: bold;
+        }
+
+        /* 練習關卡專屬箭嘴引導提示 */
+        #guide-arrow {
+            position: absolute;
+            z-index: 80;
+            pointer-events: none;
+            display: none;
+            transform: translate(-50%, -50%);
+            animation: dragGuide 1.6s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .guide-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .guide-arrow-icon {
+            font-size: clamp(1.8rem, 6vw, 2.6rem);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+        }
+
+        .guide-text-bubble {
+            background: #22c55e;
+            color: white;
+            font-size: clamp(0.7rem, 2.5vw, 0.85rem);
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            margin-bottom: 2px;
+        }
+
+        @keyframes dragGuide {
+            0% {
+                transform: translate(-50%, -50%) scale(0.85);
+                opacity: 0;
+            }
+            20% {
+                transform: translate(-50%, -50%) scale(1.1);
+                opacity: 1;
+            }
+            75% {
+                transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, -50px))) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, -50px))) scale(0.85);
+                opacity: 0;
+            }
+        }
+
+        /* 彈窗樣式 */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.96);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: clamp(16px, 4vw, 32px);
+        }
+        .overlay.show { transform: translateY(0); }
+
+        .overlay-title { font-size: clamp(1.5rem, 6vw, 2rem); margin-bottom: 24px; font-weight: bold; line-height: 1.4; text-align: center; }
+        .win-title { color: #10b981; animation: popPulse 0.5s ease-out forwards, bounce 0.6s infinite alternate 0.5s; }
+        .encourage-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.2rem, 5vw, 1.6rem); }
+        .timeout-title { color: #ef4444; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.5rem, 6vw, 2rem); }
+        
+        .btn-next, .btn-try-again {
+            font-size: clamp(1rem, 4vw, 1.3rem); 
+            padding: 12px 36px; 
+            border-radius: 20px; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+        }
+        .btn-next { background: #10b981; box-shadow: 0 5px 0 #047857; }
+        .btn-next:active { box-shadow: 0 1px 0 #047857; transform: translateY(4px); }
+        .btn-try-again { background: #f59e0b; box-shadow: 0 5px 0 #b45309; }
+        .btn-try-again:active { box-shadow: 0 1px 0 #b45309; transform: translateY(4px); }
+
+        @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes popPulse { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-15px); } }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- 練習關卡專屬箭嘴引導標籤 -->
+    <div id="guide-arrow">
+        <div class="guide-content">
+            <div class="guide-text-bubble">向上拉到這裡 ⬆️</div>
+            <div class="guide-arrow-icon">👆</div>
+        </div>
+    </div>
+
+    <header>
+        <button class="btn" id="btn-restart">重新本關 🔄</button>
+        <div class="timer-display" id="timer-display">⏳ <span id="timer-text">05:00</span></div>
+        <div class="level-indicator" id="level-title">練習關</div>
+    </header>
+
+    <div id="sudoku-grid"></div>
+
+    <div id="toolbar">
+        <div class="tool-item" draggable="true" data-value="1">
+            <div class="graphic-box box-1">
+                <span class="box-emoji">⭐</span><span class="box-label">信</span>
+                <img src="Asset 13.png" alt="信" onerror="this.style.display='none';">
+            </div>
+        </div>
+        <div class="tool-item" draggable="true" data-value="2">
+            <div class="graphic-box box-2">
+                <span class="box-emoji">☀️</span><span class="box-label">望</span>
+                <img src="Asset 11.png" alt="望" onerror="this.style.display='none';">
+            </div>
+        </div>
+        <div class="tool-item" draggable="true" data-value="3">
+            <div class="graphic-box box-3">
+                <span class="box-emoji">🌙</span><span class="box-label">愛</span>
+                <img src="Asset 8.png" alt="愛" onerror="this.style.display='none';">
+            </div>
+        </div>
+        <div class="tool-item" draggable="true" data-value="4">
+            <div class="graphic-box box-4">
+                <span class="box-emoji">🌍</span><span class="box-label">真</span>
+                <img src="Asset 17.png" alt="真" onerror="this.style.display='none';">
+            </div>
+        </div>
+        <div class="tool-item eraser" draggable="true" data-value="0">
+            <div class="graphic-box">
+                <span class="box-emoji">❌</span><span class="box-label">擦除</span>
+            </div>
+        </div>
+    </div>
+    
+    <p class="hint-text" id="hint-text">💡 點選上方圖案，再點擊空格填寫喔！</p>
+
+    <!-- 過關彈窗 -->
+    <div id="win-overlay" class="overlay">
+        <div class="overlay-title win-title" id="win-message">太棒了！<br>你全部答對了！ 🎉👏</div>
+        <button class="btn-next" id="btn-next">下一關 ➡️</button>
+    </div>
+
+    <!-- 錯誤鼓勵彈窗 -->
+    <div id="encourage-overlay" class="overlay">
+        <div class="overlay-title encourage-title">不正確，再檢查一下吧！ 💪</div>
+        <button class="btn-try-again" id="btn-try-again">繼續努力 🛠️</button>
+    </div>
+
+    <!-- 時間到彈窗 -->
+    <div id="timeout-overlay" class="overlay">
+        <div class="overlay-title timeout-title" id="timeout-message">時間到！⏰<br>挑戰結束</div>
+    </div>
+</div>
+
+<script>
+    const IMAGES = { 1: 'Asset 13.png', 2: 'Asset 11.png', 3: 'Asset 8.png', 4: 'Asset 17.png' };
+    const LABELS = {
+        1: { text: '信', emoji: '⭐' },
+        2: { text: '望', emoji: '☀️' },
+        3: { text: '愛', emoji: '🌙' },
+        4: { text: '真', emoji: '🌍' }
+    };
+
+    // 關卡設定
+    // 第 0 關為練習關，僅顯示 2x2。
+    // 第 1~10 關嚴格照要求遞增漏空數量。
+    const LEVELS = [
+        // Level 0: 練習關卡 (2x2, 缺1個)
+        { initial: [1, 2, 3, 0], isPractice: true },
+        // Level 1: 缺 1 格 (15/16)
+        { initial: [1, 2, 3, 4, 3, 0, 1, 2, 2, 1, 4, 3, 4, 3, 2, 1] },
+        // Level 2: 缺 1 格 (15/16)
+        { initial: [3, 4, 1, 2, 1, 2, 3, 4, 4, 3, 0, 1, 2, 1, 4, 3] },
+        // Level 3: 缺 2 格 (14/16)
+        { initial: [0, 1, 4, 3, 4, 3, 2, 1, 1, 2, 3, 4, 3, 4, 1, 0] },
+        // Level 4: 缺 2 格 (14/16)
+        { initial: [4, 3, 2, 1, 2, 0, 4, 3, 3, 4, 0, 2, 1, 2, 3, 4] },
+        // Level 5: 缺 3 格 (13/16)
+        { initial: [1, 2, 3, 0, 3, 4, 0, 2, 2, 0, 4, 3, 4, 3, 2, 1] },
+        // Level 6: 缺 3 格 (13/16)
+        { initial: [3, 0, 1, 2, 1, 2, 3, 4, 0, 3, 2, 1, 2, 1, 0, 3] },
+        // Level 7: 缺 3 格 (13/16)
+        { initial: [2, 1, 4, 3, 0, 3, 2, 0, 1, 2, 3, 4, 0, 4, 1, 2] },
+        // Level 8: 缺 4 格 (12/16)
+        { initial: [0, 3, 2, 1, 2, 0, 4, 3, 3, 4, 0, 2, 1, 2, 3, 0] },
+        // Level 9: 缺 4 格 (12/16)
+        { initial: [1, 0, 3, 4, 0, 4, 1, 2, 2, 1, 4, 0, 4, 3, 0, 1] },
+        // Level 10: 缺 5 格 (11/16)
+        { initial: [3, 4, 0, 2, 1, 0, 3, 4, 0, 3, 2, 0, 2, 0, 4, 3] }
+    ];
+
+    let currentLevelIndex = 0;
+    let currentGrid = [];
+    let draggedValue = null;
+    let selectedValue = null;
+
+    // 計時器變數
+    let timerInterval = null;
+    let timeLeft = 300; // 5分鐘 = 300秒
+
+    const gridElement = document.getElementById('sudoku-grid');
+    const levelTitle = document.getElementById('level-title');
+    const hintText = document.getElementById('hint-text');
+    const timerDisplay = document.getElementById('timer-display');
+    const timerText = document.getElementById('timer-text');
+    const winOverlay = document.getElementById('win-overlay');
+    const encourageOverlay = document.getElementById('encourage-overlay');
+    const timeoutOverlay = document.getElementById('timeout-overlay');
+    const winMessage = document.getElementById('win-message');
+    const timeoutMessage = document.getElementById('timeout-message');
+    const btnNext = document.getElementById('btn-next');
+    const btnTryAgain = document.getElementById('btn-try-again');
+    const btnRestart = document.getElementById('btn-restart');
+    const toolItems = document.querySelectorAll('.tool-item');
+    const guideArrow = document.getElementById('guide-arrow');
+
+    // 計算並定位練習關卡的動態箭嘴提示
+    function positionPracticeGuide() {
+        const levelData = LEVELS[currentLevelIndex];
+        if (!levelData || !levelData.isPractice) {
+            guideArrow.style.display = 'none';
+            return;
+        }
+
+        // 尋找空格（在練習關卡中是 index 3）以及地球工具圖案（data-value="4"）
+        const targetCell = gridElement.querySelector('.grid-cell[data-index="3"]');
+        const earthTool = document.querySelector('.tool-item[data-value="4"]');
+        const container = document.getElementById('game-container');
+
+        if (targetCell && earthTool && container && currentGrid[3] === 0) {
+            const containerRect = container.getBoundingClientRect();
+            const cellRect = targetCell.getBoundingClientRect();
+            const toolRect = earthTool.getBoundingClientRect();
+
+            // 起始位置：地球按鈕中心
+            const startX = toolRect.left + toolRect.width / 2 - containerRect.left;
+            const startY = toolRect.top + toolRect.height / 2 - containerRect.top;
+
+            // 目標位置：空格中心
+            const endX = cellRect.left + cellRect.width / 2 - containerRect.left;
+            const endY = cellRect.top + cellRect.height / 2 - containerRect.top;
+
+            const deltaX = endX - startX;
+            const deltaY = endY - startY;
+
+            guideArrow.style.left = `${startX}px`;
+            guideArrow.style.top = `${startY}px`;
+            guideArrow.style.setProperty('--dx', `${deltaX}px`);
+            guideArrow.style.setProperty('--dy', `${deltaY}px`);
+            guideArrow.style.display = 'block';
+        } else {
+            guideArrow.style.display = 'none';
+        }
+    }
+
+    // 格式化時間 (MM:SS)
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    function startTimer() {
+        if (timerInterval) return;
+        timerDisplay.style.display = 'block';
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerText.textContent = formatTime(timeLeft);
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                // 計算並顯示已通過的正式關卡數 (不計練習關)
+                let passed = currentLevelIndex > 0 ? currentLevelIndex - 1 : 0;
+                timeoutMessage.innerHTML = `時間到！⏰<br>挑戰結束<br><span style="font-size: clamp(1.1rem, 4vw, 1.4rem); color: #334155; display: block; margin-top: 12px;">已通過關卡數：${passed}</span>`;
+                timeoutOverlay.classList.add('show');
+            }
+        }, 1000);
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        timeLeft = 300;
+        timerText.textContent = formatTime(timeLeft);
+        timerDisplay.style.display = 'none';
+    }
+
+    function initLevel(index) {
+        currentLevelIndex = index;
+        const levelData = LEVELS[currentLevelIndex];
+        const isPractice = levelData.isPractice;
+
+        // UI 狀態更新
+        if (isPractice) {
+            levelTitle.textContent = '練習關';
+            hintText.innerHTML = '💡 這是練習關卡，看看 2x2 方格少了什麼，把地球圖案向上拉進空格吧！';
+            resetTimer(); // 練習關卡不計時
+        } else {
+            levelTitle.textContent = `第 ${currentLevelIndex} / 10 關`;
+            hintText.innerHTML = '💡 點選上方圖案，再點擊空格填寫喔！';
+            startTimer(); // 第一關開始啟動計時 (若已啟動則會略過)
+        }
+
+        winOverlay.classList.remove('show');
+        encourageOverlay.classList.remove('show');
+        timeoutOverlay.classList.remove('show');
+        
+        toolItems.forEach(i => i.classList.remove('active-selected'));
+        selectedValue = null;
+
+        currentGrid = [...levelData.initial];
+        gridElement.innerHTML = '';
+        
+        // 切換 2x2 或是 4x4 的樣式
+        gridElement.className = isPractice ? 'practice-grid' : '';
+
+        const totalCells = isPractice ? 4 : 16;
+
+        for (let i = 0; i < totalCells; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add('grid-cell');
+            cell.dataset.index = i;
+            
+            // 計算行與列 (提供給 CSS 判斷粗邊框)
+            cell.dataset.row = isPractice ? Math.floor(i / 2) : Math.floor(i / 4);
+            cell.dataset.col = isPractice ? i % 2 : i % 4;
+
+            const initialValue = currentGrid[i];
+            if (initialValue !== 0) {
+                cell.classList.add('locked');
+                createGraphicCard(cell, initialValue);
+            } else {
+                setupCellEvents(cell);
+            }
+            gridElement.appendChild(cell);
+        }
+
+        // 延遲更新箭嘴位置確保 DOM 已算好尺寸
+        setTimeout(positionPracticeGuide, 60);
+    }
+
+    function createGraphicCard(container, value) {
+        container.innerHTML = '';
+        if (value === 0) return;
+
+        const box = document.createElement('div');
+        box.className = `graphic-box box-${value}`;
+
+        const emoji = document.createElement('span');
+        emoji.className = 'box-emoji';
+        emoji.textContent = LABELS[value].emoji;
+
+        const label = document.createElement('span');
+        label.className = 'box-label';
+        label.textContent = LABELS[value].text;
+
+        const img = document.createElement('img');
+        img.src = IMAGES[value];
+        img.alt = LABELS[value].text;
+        img.onerror = function() { this.remove(); };
+
+        box.appendChild(emoji);
+        box.appendChild(label);
+        box.appendChild(img);
+        container.appendChild(box);
+    }
+
+    function setupCellEvents(cell) {
+        cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.classList.add('drag-hover'); });
+        cell.addEventListener('dragleave', () => { cell.classList.remove('drag-hover'); });
+        cell.addEventListener('drop', (e) => {
+            e.preventDefault();
+            cell.classList.remove('drag-hover');
+            if (draggedValue !== null) fillCell(cell, draggedValue);
+        });
+
+        cell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(cell.dataset.index);
+            
+            if (selectedValue !== null) {
+                // 如果有選中工具（包含擦除），正常填入/擦除
+                fillCell(cell, selectedValue);
+            } else if (currentGrid[idx] !== 0) {
+                // 如果沒有選中工具，且該格子已經填了圖案，則直接點擊消除
+                fillCell(cell, 0);
+            }
+        });
+    }
+
+    function fillCell(cell, value) {
+        const idx = parseInt(cell.dataset.index);
+        currentGrid[idx] = value;
+        createGraphicCard(cell, value);
+
+        // 更新或隱藏箭嘴提示
+        positionPracticeGuide();
+
+        const isPractice = LEVELS[currentLevelIndex].isPractice;
+        const totalCells = isPractice ? 4 : 16;
+        
+        let isBoardFull = true;
+        for (let i = 0; i < totalCells; i++) {
+            if (currentGrid[i] === 0) {
+                isBoardFull = false;
+                break;
+            }
+        }
+
+        if (isBoardFull) {
+            if (checkWin()) {
+                showWinCelebration();
+            } else {
+                encourageOverlay.classList.add('show');
+            }
+        }
+    }
+
+    toolItems.forEach(item => {
+        item.addEventListener('dragstart', () => {
+            draggedValue = parseInt(item.dataset.value);
+            item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            draggedValue = null;
+        });
+
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (item.classList.contains('active-selected')) {
+                item.classList.remove('active-selected');
+                selectedValue = null;
+            } else {
+                toolItems.forEach(i => i.classList.remove('active-selected'));
+                item.classList.add('active-selected');
+                selectedValue = parseInt(item.dataset.value);
+            }
+        });
+    });
+
+    function checkWin() {
+        const isPractice = LEVELS[currentLevelIndex].isPractice;
+        
+        // 練習關卡 (2x2) 的過關邏輯：四格都填滿且為四個不同的數
+        if (isPractice) {
+            let set = new Set();
+            for (let i = 0; i < 4; i++) {
+                if (currentGrid[i] === 0) return false;
+                set.add(currentGrid[i]);
+            }
+            return set.size === 4;
+        }
+
+        // 正式關卡 (4x4) 的過關邏輯
+        for (let i = 0; i < 16; i++) if (currentGrid[i] === 0) return false;
+
+        // 檢查每一列
+        for (let row = 0; row < 4; row++) {
+            let set = new Set();
+            for (let col = 0; col < 4; col++) set.add(currentGrid[row * 4 + col]);
+            if (set.size !== 4) return false;
+        }
+
+        // 檢查每一行
+        for (let col = 0; col < 4; col++) {
+            let set = new Set();
+            for (let row = 0; row < 4; row++) set.add(currentGrid[row * 4 + col]);
+            if (set.size !== 4) return false;
+        }
+
+        // 檢查 2x2 宮格
+        const blocks = [[0,1,4,5], [2,3,6,7], [8,9,12,13], [10,11,14,15]];
+        for (let b = 0; b < 4; b++) {
+            let set = new Set();
+            for (let idx of blocks[b]) set.add(currentGrid[idx]);
+            if (set.size !== 4) return false;
+        }
+
+        return true;
+    }
+
+    function showWinCelebration() {
+        if (currentLevelIndex === LEVELS.length - 1) {
+            // 通過所有關卡時，顯示已通過 10 關
+            winMessage.innerHTML = `🏆 太厲害了！<br>你通過了所有關卡！<br><span style="font-size: clamp(1.1rem, 4vw, 1.4rem); color: #334155; display: block; margin-top: 12px;">已通過關卡數：10</span>`;
+            btnNext.style.display = "none"; // 消除「再玩一次」按鈕
+            clearInterval(timerInterval); // 全破即停止計時
+        } else {
+            winMessage.innerHTML = "太棒了！<br>你全部答對了！ 🎉👏";
+            btnNext.textContent = "下一關 ➡️";
+            btnNext.style.display = ""; // 恢復其他關卡的按鈕顯示
+        }
+        winOverlay.classList.add('show');
+    }
+
+    btnTryAgain.addEventListener('click', () => {
+        encourageOverlay.classList.remove('show');
+    });
+
+    btnNext.addEventListener('click', () => {
+        if (currentLevelIndex === LEVELS.length - 1) {
+            resetTimer();
+            initLevel(0); // 重新從練習關開始
+        } else {
+            initLevel(currentLevelIndex + 1);
+        }
+    });
+
+    btnRestart.addEventListener('click', () => initLevel(currentLevelIndex));
+
+    // 初始化第一關 (這裡改成從 0 也就是練習關開始)
+    initLevel(0);
+</script>
+</body>
+</html>
