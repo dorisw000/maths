@@ -310,25 +310,21 @@
     <div id="toolbar">
         <div class="tool-item" draggable="true" data-value="1">
             <div class="graphic-box box-1">
-                <span class="box-emoji">⭐</span><span class="box-label">信</span>
                 <img src="Asset 13.png" alt="信" onerror="this.style.display='none';">
             </div>
         </div>
         <div class="tool-item" draggable="true" data-value="2">
             <div class="graphic-box box-2">
-                <span class="box-emoji">☀️</span><span class="box-label">望</span>
                 <img src="Asset 11.png" alt="望" onerror="this.style.display='none';">
             </div>
         </div>
         <div class="tool-item" draggable="true" data-value="3">
             <div class="graphic-box box-3">
-                <span class="box-emoji">🌙</span><span class="box-label">愛</span>
                 <img src="Asset 8.png" alt="愛" onerror="this.style.display='none';">
             </div>
         </div>
         <div class="tool-item" draggable="true" data-value="4">
             <div class="graphic-box box-4">
-                <span class="box-emoji">🌍</span><span class="box-label">真</span>
                 <img src="Asset 17.png" alt="真" onerror="this.style.display='none';">
             </div>
         </div>
@@ -528,21 +524,11 @@
         const box = document.createElement('div');
         box.className = `graphic-box box-${value}`;
 
-        const emoji = document.createElement('span');
-        emoji.className = 'box-emoji';
-        emoji.textContent = LABELS[value].emoji;
-
-        const label = document.createElement('span');
-        label.className = 'box-label';
-        label.textContent = LABELS[value].text;
-
         const img = document.createElement('img');
         img.src = IMAGES[value];
         img.alt = LABELS[value].text;
         img.onerror = function() { this.remove(); };
 
-        box.appendChild(emoji);
-        box.appendChild(label);
         box.appendChild(img);
         container.appendChild(box);
     }
