@@ -667,8 +667,8 @@
 
             if (target) {
                 const cell = target.closest('.grid-cell');
-                // 如果手指放開時有對準格子，就執行填入
-                if (cell && touchDraggedValue !== null) {
+                // 【修正處】：如果手指放開時有對準格子，並且該格子「不是」鎖定的題目，才執行填入
+                if (cell && !cell.classList.contains('locked') && touchDraggedValue !== null) {
                     fillCell(cell, touchDraggedValue);
                 }
             }
