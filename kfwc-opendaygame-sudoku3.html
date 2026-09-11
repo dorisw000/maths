@@ -271,18 +271,27 @@
         .encourage-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.2rem, 5vw, 1.6rem); }
         .timeout-title { color: #ef4444; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.5rem, 6vw, 2rem); }
         
-        .btn-next, .btn-try-again {
+        /* 新增：體驗完成標題與內文樣式 */
+        .practice-complete-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards, bounce 0.6s infinite alternate 0.5s; font-size: clamp(1.8rem, 7vw, 2.5rem); text-shadow: 0 2px 4px rgba(245, 158, 11, 0.2); }
+        .practice-complete-text { font-size: clamp(1.1rem, 4.5vw, 1.4rem); font-weight: bold; margin-bottom: 30px; line-height: 1.6; text-align: center; color: var(--text-color); }
+
+        .btn-next, .btn-try-again, .btn-start-compete {
             font-size: clamp(1rem, 4vw, 1.3rem); 
             padding: 12px 36px; 
-            border-radius: 20px; 
+            border-radius: 30px; 
             color: white; 
             border: none; 
             cursor: pointer; 
+            font-weight: bold;
         }
         .btn-next { background: #10b981; box-shadow: 0 5px 0 #047857; }
         .btn-next:active { box-shadow: 0 1px 0 #047857; transform: translateY(4px); }
         .btn-try-again { background: #f59e0b; box-shadow: 0 5px 0 #b45309; }
         .btn-try-again:active { box-shadow: 0 1px 0 #b45309; transform: translateY(4px); }
+        
+        /* 新增：進入正式比賽按鈕樣式 (參考圖片) */
+        .btn-start-compete { background: #ff4081; box-shadow: 0 5px 0 #c2185b; }
+        .btn-start-compete:active { box-shadow: 0 1px 0 #c2185b; transform: translateY(4px); }
 
         @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes popPulse { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
@@ -336,6 +345,15 @@
     </div>
     
     <p class="hint-text" id="hint-text">💡 點選上方圖案，再點擊空格填寫喔！</p>
+
+    <!-- 新增：體驗完成過場畫面 -->
+    <div id="practice-complete-overlay" class="overlay">
+        <div class="overlay-title practice-complete-title">🎉 體驗完成！</div>
+        <div class="practice-complete-text">
+            你已經熟悉玩法囉！<br>點擊下方按鈕開始正式計時比賽！
+        </div>
+        <button class="btn-start-compete" id="btn-start-compete">進入正式比賽 🚀</button>
+    </div>
 
     <div id="win-overlay" class="overlay">
         <div class="overlay-title win-title" id="win-message">太棒了！<br>你全部答對了！ 🎉👏</div>
@@ -392,14 +410,22 @@
     const hintText = document.getElementById('hint-text');
     const timerDisplay = document.getElementById('timer-display');
     const timerText = document.getElementById('timer-text');
+    
+    // 面板變數
+    const practiceCompleteOverlay = document.getElementById('practice-complete-overlay');
     const winOverlay = document.getElementById('win-overlay');
     const encourageOverlay = document.getElementById('encourage-overlay');
     const timeoutOverlay = document.getElementById('timeout-overlay');
+    
     const winMessage = document.getElementById('win-message');
     const timeoutMessage = document.getElementById('timeout-message');
+    
+    // 按鈕變數
     const btnNext = document.getElementById('btn-next');
     const btnTryAgain = document.getElementById('btn-try-again');
     const btnRestart = document.getElementById('btn-restart');
+    const btnStartCompete = document.getElementById('btn-start-compete');
+    
     const toolItems = document.querySelectorAll('.tool-item');
     const guideArrow = document.getElementById('guide-arrow');
 
@@ -483,6 +509,8 @@
             startTimer(); 
         }
 
+        // 隱藏所有過場畫面
+        practiceCompleteOverlay.classList.remove('show');
         winOverlay.classList.remove('show');
         encourageOverlay.classList.remove('show');
         timeoutOverlay.classList.remove('show');
@@ -713,18 +741,27 @@
     }
 
     function showWinCelebration() {
-        if (currentLevelIndex === LEVELS.length - 1) {
+        // 如果是練習關(第0關)，顯示專屬的體驗完成畫面
+        if (currentLevelIndex === 0) {
+            practiceCompleteOverlay.classList.add('show');
+        } 
+        // 全破畫面
+        else if (currentLevelIndex === LEVELS.length - 1) {
             winMessage.innerHTML = `🏆 太厲害了！<br>你通過了所有關卡！<br><span style="font-size: clamp(1.1rem, 4vw, 1.4rem); color: #334155; display: block; margin-top: 12px;">已通過關卡數：10</span>`;
             btnNext.style.display = "none"; 
             clearInterval(timerInterval); 
-        } else {
+            winOverlay.classList.add('show');
+        } 
+        // 正常通關畫面
+        else {
             winMessage.innerHTML = "太棒了！<br>你全部答對了！ 🎉👏";
             btnNext.textContent = "下一關 ➡️";
             btnNext.style.display = ""; 
+            winOverlay.classList.add('show');
         }
-        winOverlay.classList.add('show');
     }
 
+    // 按鈕事件綁定
     btnTryAgain.addEventListener('click', () => {
         encourageOverlay.classList.remove('show');
     });
@@ -736,6 +773,11 @@
         } else {
             initLevel(currentLevelIndex + 1);
         }
+    });
+
+    // 點擊「進入正式比賽」直接進入第一關
+    btnStartCompete.addEventListener('click', () => {
+        initLevel(1);
     });
 
     btnRestart.addEventListener('click', () => initLevel(currentLevelIndex));
