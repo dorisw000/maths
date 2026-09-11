@@ -13,7 +13,6 @@
             --cell-border: #fed7aa;
             --block-border: #f97316;
             --locked-bg: #f1f5f9;
-            /* 核心修正 1：預留頂部和底部的空間 (約180px)，防止在 iPad 橫向螢幕被擠壓導致畫面截斷 */
             --game-width: min(94vw, calc(100dvh - 180px), 440px);
         }
 
@@ -103,7 +102,7 @@
             aspect-ratio: 1;
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(4, 1fr); /* 核心修正 2：明確宣告列高，防止 iOS Safari 比例錯誤 */
+            grid-template-rows: repeat(4, 1fr); 
             border: clamp(3px, 1vw, 6px) solid var(--block-border);
             border-radius: clamp(12px, 3vw, 24px);
             background: var(--block-border);
@@ -113,7 +112,7 @@
 
         #sudoku-grid.practice-grid {
             grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(2, 1fr); /* 同步宣告練習關卡的列高 */
+            grid-template-rows: repeat(2, 1fr); 
             width: 70%;
             margin: 0 auto;
         }
@@ -121,7 +120,6 @@
         #sudoku-grid.practice-grid .grid-cell[data-row="1"] { border-bottom: none; }
 
         .grid-cell {
-            /* 移除了 aspect-ratio: 1，交由父容器完美分配比例 */
             background: white;
             border: clamp(1px, 0.5vw, 2px) solid var(--cell-border);
             display: flex;
@@ -271,7 +269,6 @@
         .encourage-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.2rem, 5vw, 1.6rem); }
         .timeout-title { color: #ef4444; animation: popPulse 0.5s ease-out forwards; font-size: clamp(1.5rem, 6vw, 2rem); }
         
-        /* 新增：體驗完成標題與內文樣式 */
         .practice-complete-title { color: #f59e0b; animation: popPulse 0.5s ease-out forwards, bounce 0.6s infinite alternate 0.5s; font-size: clamp(1.8rem, 7vw, 2.5rem); text-shadow: 0 2px 4px rgba(245, 158, 11, 0.2); }
         .practice-complete-text { font-size: clamp(1.1rem, 4.5vw, 1.4rem); font-weight: bold; margin-bottom: 30px; line-height: 1.6; text-align: center; color: var(--text-color); }
 
@@ -289,7 +286,6 @@
         .btn-try-again { background: #f59e0b; box-shadow: 0 5px 0 #b45309; }
         .btn-try-again:active { box-shadow: 0 1px 0 #b45309; transform: translateY(4px); }
         
-        /* 新增：進入正式比賽按鈕樣式 (參考圖片) */
         .btn-start-compete { background: #ff4081; box-shadow: 0 5px 0 #c2185b; }
         .btn-start-compete:active { box-shadow: 0 1px 0 #c2185b; transform: translateY(4px); }
 
@@ -311,7 +307,7 @@
     <header>
         <button class="btn" id="btn-restart">重新本關 🔄</button>
         <div class="timer-display" id="timer-display">⏳ <span id="timer-text">05:00</span></div>
-        <div class="level-indicator" id="level-title">練習關</div>
+        <div class="level-indicator" id="level-title">體驗關A</div>
     </header>
 
     <div id="sudoku-grid"></div>
@@ -346,7 +342,7 @@
     
     <p class="hint-text" id="hint-text">💡 點選上方圖案，再點擊空格填寫喔！</p>
 
-    <!-- 新增：體驗完成過場畫面 -->
+    <!-- 體驗完成過場畫面 -->
     <div id="practice-complete-overlay" class="overlay">
         <div class="overlay-title practice-complete-title">🎉 體驗完成！</div>
         <div class="practice-complete-text">
@@ -379,8 +375,10 @@
         4: { text: '真', emoji: '🌍' }
     };
 
+    // 關卡設定：前兩關為練習關（體驗關A、體驗關B）
     const LEVELS = [
-        { initial: [1, 2, 3, 0], isPractice: true },
+        { initial: [1, 2, 3, 0], isPractice: true, is2x2: true, title: '體驗關A', missingIndex: 3, correctValue: 4 },
+        { initial: [1, 2, 3, 4, 3, 4, 1, 2, 2, 1, 4, 3, 4, 3, 2, 0], isPractice: true, is2x2: false, title: '體驗關B', missingIndex: 15, correctValue: 1 },
         { initial: [1, 2, 3, 4, 3, 0, 1, 2, 2, 1, 4, 3, 4, 3, 2, 1] },
         { initial: [3, 4, 1, 2, 1, 2, 3, 4, 4, 3, 0, 1, 2, 1, 4, 3] },
         { initial: [2, 0, 4, 3, 4, 3, 2, 1, 1, 2, 3, 4, 3, 4, 1, 0] },
@@ -436,14 +434,15 @@
             return;
         }
 
-        const targetCell = gridElement.querySelector('.grid-cell[data-index="3"]');
-        const earthTool = document.querySelector('.tool-item[data-value="4"]');
+        // 動態讀取當前練習關漏空的格子和應該填入的正確圖案
+        const targetCell = gridElement.querySelector(`.grid-cell[data-index="${levelData.missingIndex}"]`);
+        const correctTool = document.querySelector(`.tool-item[data-value="${levelData.correctValue}"]`);
         const container = document.getElementById('game-container');
 
-        if (targetCell && earthTool && container && currentGrid[3] === 0) {
+        if (targetCell && correctTool && container && currentGrid[levelData.missingIndex] === 0) {
             const containerRect = container.getBoundingClientRect();
             const cellRect = targetCell.getBoundingClientRect();
-            const toolRect = earthTool.getBoundingClientRect();
+            const toolRect = correctTool.getBoundingClientRect();
 
             const startX = toolRect.left + toolRect.width / 2 - containerRect.left;
             const startY = toolRect.top + toolRect.height / 2 - containerRect.top;
@@ -479,7 +478,8 @@
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
                 timerInterval = null;
-                let passed = currentLevelIndex > 0 ? currentLevelIndex - 1 : 0;
+                // 計算通過的正式關卡數量 (扣除前面2個練習關)
+                let passed = Math.max(0, currentLevelIndex - 2);
                 timeoutMessage.innerHTML = `時間到！⏰<br>挑戰結束<br><span style="font-size: clamp(1.1rem, 4vw, 1.4rem); color: #334155; display: block; margin-top: 12px;">已通過關卡數：${passed}</span>`;
                 timeoutOverlay.classList.add('show');
             }
@@ -498,13 +498,15 @@
         currentLevelIndex = index;
         const levelData = LEVELS[currentLevelIndex];
         const isPractice = levelData.isPractice;
+        const is2x2 = levelData.is2x2;
 
         if (isPractice) {
-            levelTitle.textContent = '練習關';
+            levelTitle.textContent = levelData.title;
             hintText.innerHTML = '💡 這是練習關卡，看看這個方格少了甚麼圖案？';
             resetTimer(); 
         } else {
-            levelTitle.textContent = `第 ${currentLevelIndex} / 10 關`;
+            // 從 index 2 開始是正式比賽，所以顯示 currentLevelIndex - 1 (因為前面有兩個練習關，正式比賽第一關為第 1 關)
+            levelTitle.textContent = `第 ${currentLevelIndex - 1} / 10 關`;
             hintText.innerHTML = '💡 點選上方圖案，再點擊空格填寫，或者把圖案拉上空格位置！';
             startTimer(); 
         }
@@ -521,16 +523,16 @@
         currentGrid = [...levelData.initial];
         gridElement.innerHTML = '';
         
-        gridElement.className = isPractice ? 'practice-grid' : '';
-        const totalCells = isPractice ? 4 : 16;
+        gridElement.className = is2x2 ? 'practice-grid' : '';
+        const totalCells = is2x2 ? 4 : 16;
 
         for (let i = 0; i < totalCells; i++) {
             const cell = document.createElement('div');
             cell.classList.add('grid-cell');
             cell.dataset.index = i;
             
-            cell.dataset.row = isPractice ? Math.floor(i / 2) : Math.floor(i / 4);
-            cell.dataset.col = isPractice ? i % 2 : i % 4;
+            cell.dataset.row = is2x2 ? Math.floor(i / 2) : Math.floor(i / 4);
+            cell.dataset.col = is2x2 ? i % 2 : i % 4;
 
             const initialValue = currentGrid[i];
             if (initialValue !== 0) {
@@ -589,8 +591,8 @@
 
         positionPracticeGuide();
 
-        const isPractice = LEVELS[currentLevelIndex].isPractice;
-        const totalCells = isPractice ? 4 : 16;
+        const is2x2 = LEVELS[currentLevelIndex].is2x2;
+        const totalCells = is2x2 ? 4 : 16;
         
         let isBoardFull = true;
         for (let i = 0; i < totalCells; i++) {
@@ -610,7 +612,6 @@
     }
 
     toolItems.forEach(item => {
-        // --- 桌面版 Drag & Drop ---
         item.addEventListener('dragstart', () => {
             draggedValue = parseInt(item.dataset.value);
             item.classList.add('dragging');
@@ -621,7 +622,6 @@
             draggedValue = null;
         });
 
-        // --- 點擊選取 ---
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             if (item.classList.contains('active-selected')) {
@@ -634,12 +634,10 @@
             }
         });
 
-        // --- 核心修正：加入 iOS/觸控裝置 專屬拖拉事件 ---
         item.addEventListener('touchstart', (e) => {
             const touch = e.touches[0];
             touchDraggedValue = parseInt(item.dataset.value);
 
-            // 產生一個虛擬的浮動物件跟隨手指
             activeTouchClone = item.cloneNode(true);
             const rect = item.getBoundingClientRect();
             activeTouchClone.style.position = 'fixed';
@@ -648,7 +646,7 @@
             activeTouchClone.style.width = rect.width + 'px';
             activeTouchClone.style.height = rect.height + 'px';
             activeTouchClone.style.transform = 'translate(-50%, -50%) scale(1.18)';
-            activeTouchClone.style.pointerEvents = 'none'; // 讓底部元素可以被偵測
+            activeTouchClone.style.pointerEvents = 'none'; 
             activeTouchClone.style.zIndex = '9999';
             activeTouchClone.style.opacity = '0.9';
             activeTouchClone.style.margin = '0';
@@ -659,12 +657,11 @@
 
         item.addEventListener('touchmove', (e) => {
             if (!activeTouchClone) return;
-            e.preventDefault(); // 阻止畫面滾動
+            e.preventDefault(); 
             const touch = e.touches[0];
             activeTouchClone.style.left = touch.clientX + 'px';
             activeTouchClone.style.top = touch.clientY + 'px';
 
-            // 視覺提示目前手指下方的格子
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
             document.querySelectorAll('.grid-cell').forEach(c => c.classList.remove('drag-hover'));
             if (target && target.closest('.grid-cell')) {
@@ -681,7 +678,6 @@
 
             if (target) {
                 const cell = target.closest('.grid-cell');
-                // 【修正處】：如果手指放開時有對準格子，並且該格子「不是」鎖定的題目，才執行填入
                 if (cell && !cell.classList.contains('locked') && touchDraggedValue !== null) {
                     fillCell(cell, touchDraggedValue);
                 }
@@ -705,9 +701,10 @@
     });
 
     function checkWin() {
-        const isPractice = LEVELS[currentLevelIndex].isPractice;
+        const levelData = LEVELS[currentLevelIndex];
         
-        if (isPractice) {
+        // 針對 2x2 練習關的勝利判定
+        if (levelData.is2x2) {
             let set = new Set();
             for (let i = 0; i < 4; i++) {
                 if (currentGrid[i] === 0) return false;
@@ -716,6 +713,7 @@
             return set.size === 4;
         }
 
+        // 其餘關卡（包含體驗關B及正式關卡）為 4x4 的勝利判定
         for (let i = 0; i < 16; i++) if (currentGrid[i] === 0) return false;
 
         for (let row = 0; row < 4; row++) {
@@ -741,8 +739,15 @@
     }
 
     function showWinCelebration() {
-        // 如果是練習關(第0關)，顯示專屬的體驗完成畫面
+        // 體驗關A(第0關)完成，顯示正常的過關畫面並導向下一關(體驗關B)
         if (currentLevelIndex === 0) {
+            winMessage.innerHTML = "太棒了！<br>準備進入第二個練習！ 🎉👏";
+            btnNext.textContent = "下一關 ➡️";
+            btnNext.style.display = ""; 
+            winOverlay.classList.add('show');
+        }
+        // 體驗關B(第1關)完成，顯示專屬的體驗完成畫面
+        else if (currentLevelIndex === 1) {
             practiceCompleteOverlay.classList.add('show');
         } 
         // 全破畫面
@@ -752,7 +757,7 @@
             clearInterval(timerInterval); 
             winOverlay.classList.add('show');
         } 
-        // 正常通關畫面
+        // 正常正式比賽通關畫面
         else {
             winMessage.innerHTML = "太棒了！<br>你全部答對了！ 🎉👏";
             btnNext.textContent = "下一關 ➡️";
@@ -775,9 +780,9 @@
         }
     });
 
-    // 點擊「進入正式比賽」直接進入第一關
+    // 點擊「進入正式比賽」直接進入第2個 index（即正式比賽的第一關）
     btnStartCompete.addEventListener('click', () => {
-        initLevel(1);
+        initLevel(2);
     });
 
     btnRestart.addEventListener('click', () => initLevel(currentLevelIndex));
