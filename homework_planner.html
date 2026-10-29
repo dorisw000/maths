@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>功課時間表規劃器</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #4a90d9; color: white; padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  header h1 { font-size: 20px; margin-right: 20px; }
+  header select, header input, header button { padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+  header select { min-width: 110px; }
+  header button { background: #fff; color: #4a90d9; cursor: pointer; border: none; }
+  header button:hover { background: #e6f0fa; }
+  header button.active { background: #2c6cb0; color: white; }
+
+  .container { display: flex; height: calc(100vh - 60px); }
+  .sidebar { width: 300px; background: white; border-right: 1px solid #ddd; padding: 16px; overflow-y: auto; }
+  .sidebar h3 { margin: 12px 0 8px; color: #4a90d9; font-size: 16px; }
+  .pool-input { display: flex; gap: 6px; margin-bottom: 8px; }
+  .pool-input input { flex: 1; padding: 6px; }
+  .pool-input button { padding: 6px 12px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  .pool { min-height: 70px; border: 1px dashed #ccc; border-radius: 6px; padding: 8px; background: #fafafa; }
+  .item { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 6px 8px; margin: 4px 0; cursor: grab; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  .item:active { cursor: grabbing; }
+  .item .del { color: #e74c3c; cursor: pointer; font-weight: bold; margin-left: 8px; }
+
+  .main { flex: 1; padding: 16px; overflow: auto; background: #fafafa; }
+  .month-view { display: none; }
+  .month-view.active { display: block; width: 100%; }
+  .month-grid { 
+    display: grid; 
+    grid-template-columns: 48px repeat(7, minmax(100px, 1fr)); 
+    gap: 6px; 
+    width: 100%;
+    max-width: 1400px;
+  }
+  .weekday-header { text-align: center; font-weight: bold; padding: 10px 4px; background: #d6ebf9; border-radius: 4px; font-size: 13px; }
+  .week-label { display: flex; align-items: center; justify-content: center; font-weight: bold; background: #eee; border-radius: 4px; font-size: 12px; }
+  .day-cell { border: 1px solid #ddd; border-radius: 6px; padding: 6px; min-height: 110px; background: #fff; position: relative; }
+  .day-cell.holiday { background: #e0e0e0; }
+  .day-cell.exam { background: #ffe0b2; }
+  .day-cell.activity { background: #d1c4e9; }
+  .status-badge.activity { background: #7e57c2; }
+  .day-header { font-weight: bold; font-size: 13px; margin-bottom: 4px; cursor: pointer; display: flex; justify-content: space-between; }
+  .day-header:hover { text-decoration: underline; }
+  .status-badge { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: #999; color: white; }
+  .status-badge.exam { background: #ff9800; }
+  .drop-zone { min-height: 36px; border: 1px dashed #ccc; border-radius: 4px; margin: 4px 0; padding: 4px; font-size: 12px; }
+  .drop-zone.over { background: #e3f2fd; border-color: #4a90d9; }
+  .drop-zone h4 { font-size: 11px; color: #666; margin-bottom: 2px; }
+  .task { background: #f8bbd0; border-radius: 3px; padding: 2px 6px; margin: 2px 0; font-size: 11px; display: flex; justify-content: space-between; }
+  .task.classwork { background: #c8e6c9; }
+  .task.progress { background: #bbdefb; }
+  .task .del { cursor: pointer; color: #c62828; }
+
+  /* 一日／週視圖 */
+  .week-view { display: none; }
+  .week-view.active { display: block; }
+  .week-table { width: 100%; border-collapse: collapse; }
+  .week-table th, .week-table td { border: 1px solid #ddd; padding: 6px; vertical-align: top; }
+  .week-table th { background: #e8f4fc; text-align: center; }
+  .week-table .week-col { background: #f0f0f0; font-weight: bold; width: 70px; text-align: center; }
+  .week-table .day-cell { min-height: 140px; }
+
+  .empty { color: #999; font-size: 12px; text-align: center; padding: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>功課時間表</h1>
+  <label>班別：</label>
+  <select id="classSelect"></select>
+  <input id="classNameEdit" type="text" placeholder="修改班別名稱" style="width:140px;">
+  <button id="saveClassName">儲存名稱</button>
+  <input id="newClassName" type="text" placeholder="新班別名稱">
+  <button id="addClassBtn">新增班別</button>
+  <button id="resetDataBtn" style="background:#e74c3c; color:white;">清除所有資料</button>
+  <button id="btnDayView" class="active">一日顯示</button>
+  <button id="btnMonthView">一個月顯示</button>
+  <label>月份：</label>
+  <input type="month" id="monthPicker">
+</header>
+
+<div class="container">
+  <div class="sidebar">
+    <h3>教學進度</h3>
+    <div class="pool-input">
+      <input id="inputJiaoXue" type="text" placeholder="輸入教學進度">
+      <button id="addJiaoXue">添加</button>
+    </div>
+    <div id="poolJiaoXue" class="pool" data-type="jiaoXue"></div>
+
+    <h3>功課</h3>
+    <div class="pool-input">
+      <input id="inputGongKe" type="text" placeholder="輸入功課名稱">
+      <button id="addGongKe">添加</button>
+    </div>
+    <div id="poolGongKe" class="pool" data-type="gongKe"></div>
+
+    <h3>堂課</h3>
+    <div class="pool-input">
+      <input id="inputTangKe" type="text" placeholder="輸入堂課名稱">
+      <button id="addTangKe">添加</button>
+    </div>
+    <div id="poolTangKe" class="pool" data-type="tangKe"></div>
+
+    <h3>派發</h3>
+    <div class="pool-input">
+      <input id="inputPaiFa" type="text" placeholder="輸入派發功課名稱">
+      <button id="addPaiFa">添加</button>
+    </div>
+    <div id="poolPaiFa" class="pool" data-type="paiFa"></div>
+  </div>
+
+  <div class="main">
+    <div id="weekView" class="week-view active"></div>
+    <div id="monthView" class="month-view"></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'homework_planner_v1';
+
+let state = {
+  classes: {},
+  currentClass: null,
+  currentMonth: null // 'YYYY-MM'
+};
+
+// 初始化
+function loadState() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try { state = JSON.parse(saved); } catch(e) { state = { classes: {}, currentClass: null, currentMonth: null }; }
+  }
+  if (!state.classes || typeof state.classes !== 'object') state.classes = {};
+  if (Object.keys(state.classes).length === 0) {
+    const today = new Date();
+    const ym = today.toISOString().slice(0,7);
+    state.classes['4B'] = {
+      name: '4B',
+      pools: { jiaoXue: [], gongKe: [], tangKe: [], paiFa: [] },
+      days: {}
+    };
+    state.currentClass = '4B';
+    state.currentMonth = ym;
+  }
+  // 確保 currentClass 有效
+  if (!state.currentClass || !state.classes[state.currentClass]) {
+    state.currentClass = Object.keys(state.classes)[0];
+  }
+  if (!state.currentMonth) {
+    state.currentMonth = new Date().toISOString().slice(0,7);
+  }
+  // 確保每個班別都有完整 pools 與 days
+  Object.values(state.classes).forEach(cls => {
+    if (!cls.pools) cls.pools = {};
+    if (!cls.pools.jiaoXue) cls.pools.jiaoXue = [];
+    if (!cls.pools.gongKe) cls.pools.gongKe = [];
+    if (!cls.pools.tangKe) cls.pools.tangKe = [];
+    if (!cls.pools.paiFa) cls.pools.paiFa = [];
+    if (!cls.days) cls.days = {};
+    // 遷移舊資料：確保每天都有 progress 陣列
+    Object.values(cls.days).forEach(day => {
+      if (!day.progress) day.progress = [];
+      if (!day.homework) day.homework = [];
+      if (!day.classwork) day.classwork = [];
+    });
+  });
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function getCurrentClass() {
+  return state.classes[state.currentClass];
+}
+
+// 日期工具
+function getMonthDays(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const first = new Date(y, m-1, 1);
+  const last = new Date(y, m, 0);
+  const days = [];
+  for (let d = 1; d <= last.getDate(); d++) {
+    const date = new Date(y, m-1, d);
+    days.push(date);
+  }
+  return days;
+}
+
+function formatDate(d) {
+  return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+
+function dateKey(d) {
+  return d.toISOString().slice(0,10);
+}
+
+function getWeekNumber(d, monthStart) {
+  const start = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
+  const diff = Math.floor((d - start) / (7*24*3600*1000));
+  return diff + 1;
+}
+
+// UI 更新
+function renderClassSelect() {
+  const sel = document.getElementById('classSelect');
+  sel.innerHTML = '';
+  Object.keys(state.classes).forEach(id => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = state.classes[id].name;
+    if (id === state.currentClass) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  document.getElementById('classNameEdit').value = getCurrentClass()?.name || '';
+}
+
+function renderPools() {
+  const cls = getCurrentClass();
+  if (!cls) return;
+  if (!cls.pools.jiaoXue) cls.pools.jiaoXue = [];
+  if (!cls.pools.gongKe) cls.pools.gongKe = [];
+  if (!cls.pools.tangKe) cls.pools.tangKe = [];
+  if (!cls.pools.paiFa) cls.pools.paiFa = [];
+
+  const types = [
+    { key: 'jiaoXue', id: 'poolJiaoXue' },
+    { key: 'gongKe', id: 'poolGongKe' },
+    { key: 'tangKe', id: 'poolTangKe' },
+    { key: 'paiFa', id: 'poolPaiFa' }
+  ];
+
+  types.forEach(({ key, id }) => {
+    const container = document.getElementById(id);
+    if (!container) return;
+    container.innerHTML = '';
+    (cls.pools[key] || []).forEach((item, idx) => {
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.draggable = true;
+      div.dataset.type = key;
+      div.dataset.idx = idx;
+      div.innerHTML = `<span>${item}</span><span class="del">×</span>`;
+      div.querySelector('.del').onclick = (e) => {
+        e.stopPropagation();
+        cls.pools[key].splice(idx, 1);
+        saveState();
+        renderPools();
+      };
+      div.ondragstart = (e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ from: 'pool', type: key, name: item, idx }));
+      };
+      container.appendChild(div);
+    });
+    if ((cls.pools[key] || []).length === 0) {
+      container.innerHTML = '<div class="empty">拖曳至此或點擊添加</div>';
+    }
+  });
+}
+
+function cycleStatus(dateStr) {
+  const cls = getCurrentClass();
+  if (!cls.days[dateStr]) cls.days[dateStr] = { status: '', progress: [], homework: [], classwork: [] };
+  const day = cls.days[dateStr];
+  if (day.status === '') day.status = 'holiday';
+  else if (day.status === 'holiday') day.status = 'exam';
+  else if (day.status === 'exam') day.status = 'activity';
+  else day.status = '';
+  saveState();
+  renderCurrentView();
+}
+
+function renderWeekView() {
+  const container = document.getElementById('weekView');
+  const cls = getCurrentClass();
+  if (!cls) return;
+  const ym = state.currentMonth;
+  const [y, m] = ym.split('-').map(Number);
+  const days = getMonthDays(ym).filter(d => d.getDay() !== 0 && d.getDay() !== 6);
+
+  // 按實際週分組（以週一為起點）
+  const weeks = {};
+  days.forEach(d => {
+    const mondayOffset = (d.getDay() + 6) % 7; // 0=Mon
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - mondayOffset);
+    const weekKey = weekStart.toISOString().slice(0,10);
+    if (!weeks[weekKey]) weeks[weekKey] = Array(5).fill(null);
+    const col = mondayOffset; // 0-4 for Mon-Fri
+    weeks[weekKey][col] = d;
+  });
+
+  let html = '<table class="week-table"><thead><tr><th class="week-col">周次</th>';
+  ['一','二','三','四','五'].forEach(d => html += `<th>${d}</th>`);
+  html += '</tr></thead><tbody>';
+
+  let weekNum = 1;
+  Object.keys(weeks).sort().forEach(wk => {
+    const weekDays = weeks[wk];
+    html += `<tr><td class="week-col">week${weekNum}</td>`;
+    for (let i = 0; i < 5; i++) {
+      const d = weekDays[i];
+      if (!d) { html += '<td></td>'; continue; }
+      const key = dateKey(d);
+      const dayData = cls.days[key] || { status:'', progress:[], homework:[], classwork:[] };
+      let clsName = 'day-cell';
+      if (dayData.status === 'holiday') clsName += ' holiday';
+      if (dayData.status === 'exam') clsName += ' exam';
+      if (dayData.status === 'activity') clsName += ' activity';
+      html += `<td class="${clsName}" data-date="${key}">
+        <div class="day-header" onclick="cycleStatus('${key}')">${formatDate(d)} 
+          ${dayData.status==='holiday'?'<span class="status-badge">放假</span>':''}
+          ${dayData.status==='exam'?'<span class="status-badge exam">EXAM</span>':''}
+          ${dayData.status==='activity'?'<span class="status-badge activity">活動</span>':''}
+        </div>
+        <div class="drop-zone" data-zone="progress" data-date="${key}">
+          <h4>教學進度</h4>
+          ${dayData.progress.map((t,i)=>`<div class="task progress" data-idx="${i}" data-zone="progress">${t}<span class="del">×</span></div>`).join('')}
+        </div>
+        <div class="drop-zone" data-zone="homework" data-date="${key}">
+          <h4>功課</h4>
+          ${dayData.homework.map((t,i)=>`<div class="task" data-idx="${i}" data-zone="homework">${t}<span class="del">×</span></div>`).join('')}
+        </div>
+        <div class="drop-zone" data-zone="classwork" data-date="${key}">
+          <h4>堂課</h4>
+          ${dayData.classwork.map((t,i)=>`<div class="task classwork" data-idx="${i}" data-zone="classwork">${t}<span class="del">×</span></div>`).join('')}
+        </div>
+      </td>`;
+    }
+    html += '</tr>';
+    weekNum++;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+  attachDropEvents();
+}
+
+function renderMonthView() {
+  const container = document.getElementById('monthView');
+  const cls = getCurrentClass();
+  if (!cls) return;
+  const ym = state.currentMonth;
+  const [y, m] = ym.split('-').map(Number);
+  const first = new Date(y, m-1, 1);
+  const lastDay = new Date(y, m, 0).getDate();
+  const startPad = first.getDay(); // 0 = Sunday
+
+  let html = '<div class="month-grid">';
+  // Header row
+  html += '<div class="weekday-header" style="background:#d0e8f8;">周</div>';
+  ['日','一','二','三','四','五','六'].forEach(d => html += `<div class="weekday-header">${d}</div>`);
+
+  let dayNum = 1;
+  let weekNum = 1;
+  // Generate rows
+  for (let row = 0; row < 6; row++) {
+    // Week label
+    html += `<div class="week-label">W${weekNum}</div>`;
+    for (let col = 0; col < 7; col++) {
+      const cellIndex = row * 7 + col;
+      if (cellIndex < startPad || dayNum > lastDay) {
+        html += '<div></div>';
+      } else {
+        const d = new Date(y, m-1, dayNum);
+        const key = dateKey(d);
+        const dayData = cls.days[key] || { status:'', progress:[], homework:[], classwork:[] };
+        let clsName = 'day-cell';
+        if (dayData.status === 'holiday') clsName += ' holiday';
+        if (dayData.status === 'exam') clsName += ' exam';
+        if (dayData.status === 'activity') clsName += ' activity';
+        html += `<div class="${clsName}" data-date="${key}">
+          <div class="day-header" onclick="cycleStatus('${key}')">${dayNum}
+            ${dayData.status==='holiday'?'<span class="status-badge">放假</span>':''}
+            ${dayData.status==='exam'?'<span class="status-badge exam">EXAM</span>':''}
+            ${dayData.status==='activity'?'<span class="status-badge activity">活動</span>':''}
+          </div>
+          <div class="drop-zone" data-zone="progress" data-date="${key}">
+            <h4>教學進度</h4>
+            ${dayData.progress.map((t,i)=>`<div class="task progress" data-idx="${i}" data-zone="progress">${t}<span class="del">×</span></div>`).join('')}
+          </div>
+          <div class="drop-zone" data-zone="homework" data-date="${key}">
+            <h4>功課</h4>
+            ${dayData.homework.map((t,i)=>`<div class="task" data-idx="${i}" data-zone="homework">${t}<span class="del">×</span></div>`).join('')}
+          </div>
+          <div class="drop-zone" data-zone="classwork" data-date="${key}">
+            <h4>堂課</h4>
+            ${dayData.classwork.map((t,i)=>`<div class="task classwork" data-idx="${i}" data-zone="classwork">${t}<span class="del">×</span></div>`).join('')}
+          </div>
+        </div>`;
+        dayNum++;
+      }
+    }
+    weekNum++;
+    if (dayNum > lastDay) break;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+  attachDropEvents();
+}
+
+function renderCurrentView() {
+  if (document.getElementById('weekView').classList.contains('active')) {
+    renderWeekView();
+  } else {
+    renderMonthView();
+  }
+}
+
+function attachDropEvents() {
+  document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('over'); };
+    zone.ondragleave = () => zone.classList.remove('over');
+    zone.ondrop = (e) => {
+      e.preventDefault();
+      zone.classList.remove('over');
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const date = zone.dataset.date;
+      const zoneType = zone.dataset.zone; // progress / homework / classwork
+      const cls = getCurrentClass();
+      if (!cls.days[date]) cls.days[date] = { status:'', progress:[], homework:[], classwork:[] };
+      if (!cls.days[date][zoneType]) cls.days[date][zoneType] = [];
+      cls.days[date][zoneType].push(data.name);
+      // 如果是從 pool 拖來，可選擇是否移除（這裡保留 pool 可重複使用）
+      saveState();
+      renderCurrentView();
+      renderPools();
+    };
+  });
+
+  // 刪除已放入的任務
+  document.querySelectorAll('.task .del').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const taskEl = btn.parentElement;
+      const zone = taskEl.closest('.drop-zone');
+      const date = zone.dataset.date;
+      const zoneType = zone.dataset.zone;
+      const idx = parseInt(taskEl.dataset.idx);
+      const cls = getCurrentClass();
+      if (cls.days[date] && cls.days[date][zoneType]) {
+        cls.days[date][zoneType].splice(idx, 1);
+      }
+      saveState();
+      renderCurrentView();
+    };
+  });
+}
+
+// 事件綁定
+document.getElementById('classSelect').onchange = (e) => {
+  state.currentClass = e.target.value;
+  saveState();
+  renderAll();
+};
+
+document.getElementById('saveClassName').onclick = () => {
+  const name = document.getElementById('classNameEdit').value.trim();
+  if (name && getCurrentClass()) {
+    getCurrentClass().name = name;
+    saveState();
+    renderClassSelect();
+  }
+};
+
+document.getElementById('addClassBtn').onclick = () => {
+  const name = document.getElementById('newClassName').value.trim();
+  if (!name) {
+    alert('請輸入班別名稱');
+    return;
+  }
+  // 避免重複名稱
+  const exists = Object.values(state.classes).some(c => c.name === name);
+  if (exists) {
+    alert('此班別名稱已存在');
+    return;
+  }
+  const id = 'cls_' + Date.now();
+  state.classes[id] = { 
+    name, 
+    pools: { jiaoXue: [], gongKe: [], tangKe: [], paiFa: [] }, 
+    days: {} 
+  };
+  state.currentClass = id;
+  document.getElementById('newClassName').value = '';
+  saveState();
+  renderAll();
+  alert('已新增班別：' + name);
+};
+
+document.getElementById('resetDataBtn').onclick = () => {
+  if (confirm('確定要清除所有資料嗎？此動作無法復原。')) {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+};
+
+document.getElementById('addJiaoXue').onclick = () => {
+  const input = document.getElementById('inputJiaoXue');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!getCurrentClass().pools.jiaoXue) getCurrentClass().pools.jiaoXue = [];
+  getCurrentClass().pools.jiaoXue.push(name);
+  input.value = '';
+  saveState();
+  renderPools();
+};
+
+document.getElementById('addGongKe').onclick = () => {
+  const input = document.getElementById('inputGongKe');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!getCurrentClass().pools.gongKe) getCurrentClass().pools.gongKe = [];
+  getCurrentClass().pools.gongKe.push(name);
+  input.value = '';
+  saveState();
+  renderPools();
+};
+
+document.getElementById('addTangKe').onclick = () => {
+  const input = document.getElementById('inputTangKe');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!getCurrentClass().pools.tangKe) getCurrentClass().pools.tangKe = [];
+  getCurrentClass().pools.tangKe.push(name);
+  input.value = '';
+  saveState();
+  renderPools();
+};
+
+document.getElementById('addPaiFa').onclick = () => {
+  const input = document.getElementById('inputPaiFa');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!getCurrentClass().pools.paiFa) getCurrentClass().pools.paiFa = [];
+  getCurrentClass().pools.paiFa.push(name);
+  input.value = '';
+  saveState();
+  renderPools();
+};
+
+document.getElementById('btnDayView').onclick = () => {
+  document.getElementById('weekView').classList.add('active');
+  document.getElementById('monthView').classList.remove('active');
+  document.getElementById('btnDayView').classList.add('active');
+  document.getElementById('btnMonthView').classList.remove('active');
+  renderWeekView();
+};
+
+document.getElementById('btnMonthView').onclick = () => {
+  document.getElementById('weekView').classList.remove('active');
+  document.getElementById('monthView').classList.add('active');
+  document.getElementById('btnDayView').classList.remove('active');
+  document.getElementById('btnMonthView').classList.add('active');
+  renderMonthView();
+  // 強制重新整理顯示
+  setTimeout(() => {
+    if (document.getElementById('monthView').innerHTML.trim() === '') {
+      renderMonthView();
+    }
+  }, 50);
+};
+
+document.getElementById('monthPicker').onchange = (e) => {
+  state.currentMonth = e.target.value;
+  saveState();
+  renderCurrentView();
+};
+
+function renderAll() {
+  renderClassSelect();
+  renderPools();
+  document.getElementById('monthPicker').value = state.currentMonth;
+  renderCurrentView();
+}
+
+// 啟動
+try {
+  loadState();
+  renderAll();
+} catch (e) {
+  console.error(e);
+  alert('載入資料時發生錯誤，已嘗試重置。請重新整理頁面。');
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// 讓 cycleStatus 可從 HTML 呼叫
+window.cycleStatus = cycleStatus;
+</script>
+</body>
+</html>
